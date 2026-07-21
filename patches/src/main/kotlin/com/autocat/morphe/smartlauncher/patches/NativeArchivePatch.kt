@@ -5,6 +5,7 @@ import app.revanced.patcher.annotation.Patch
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.tree.ClassNode
 import org.objectweb.asm.tree.InsnList
+import org.objectweb.asm.tree.InsnNode
 import org.objectweb.asm.tree.MethodInsnNode
 import org.objectweb.asm.tree.MethodNode
 import org.objectweb.asm.tree.VarInsnNode
@@ -33,8 +34,11 @@ class NativeArchivePatch : BasePatch(
      * Target fingerprint for app action handlers in Smart Launcher 6.
      */
     fun matchesAppActionMethod(method: MethodNode): Boolean {
-        return method.name.contains("performAppAction") ||
-               method.name.contains("handleAppMenuSelection")
+        val isStatic = (method.access and Opcodes.ACC_STATIC) != 0
+        return !isStatic && (
+            method.desc.contains("Landroid/content/Context;Ljava/lang/String;") ||
+            method.desc.contains("Landroid/view/View;Ljava/lang/String;")
+        )
     }
 
     /**
@@ -55,6 +59,8 @@ class NativeArchivePatch : BasePatch(
                             false
                         )
                     )
+                    // Pop returned boolean off stack to prevent stack imbalance VerifyError
+                    add(InsnNode(Opcodes.POP))
                 }
 
                 method.instructions.insert(instructions)

@@ -1,6 +1,8 @@
 package com.autocat.morphe.smartlauncher.helpers
 
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.content.IntentSender
 import android.content.pm.LauncherApps
 import android.content.pm.PackageInstaller
@@ -16,21 +18,13 @@ object NativeArchiveHelper {
 
     private const val TAG = "SmartLauncherMorphe_NativeArchive"
 
-    /**
-     * Checks whether the current device/OS supports native app archiving APIs.
-     */
     @JvmStatic
     fun isNativeArchiveSupported(): Boolean {
-        // Official PackageInstaller / LauncherApps archive APIs were standardized in API 35 (Android 15)
-        // and supported on updated Samsung One UI device platforms.
         return Build.VERSION.SDK_INT >= 35
     }
 
     /**
-     * Triggers the official system device app archive dialog/request for a specific package.
-     *
-     * @param context Host Context.
-     * @param packageName Target package to request system archiving for.
+     * Triggers official system app archiving request.
      */
     @JvmStatic
     fun requestNativeArchive(context: Context, packageName: String): Boolean {
@@ -40,29 +34,30 @@ object NativeArchiveHelper {
         }
 
         return try {
-            val getPackageInstallerMethod = context.packageManager.javaClass.getMethod("getPackageInstaller")
-            val packageInstaller = getPackageInstallerMethod.invoke(context.packageManager)
-            
-            // Reflectively invoke requestArchive on PackageInstaller (API 35+)
+            val packageInstaller = context.packageManager.packageInstaller
+            val intentSender = createDummyIntentSender(context, packageName)
+
             val requestArchiveMethod = packageInstaller.javaClass.getMethod(
                 "requestArchive",
                 String::class.java,
                 IntentSender::class.java
             )
 
-            requestArchiveMethod.invoke(packageInstaller, packageName, null)
+            requestArchiveMethod.invoke(packageInstaller, packageName, intentSender)
             Log.i(TAG, "Native archive requested for $packageName")
+            Toast.makeText(context, "Requesting native archive for $packageName...", Toast.LENGTH_SHORT).show()
             true
         } catch (e: NoSuchMethodException) {
             try {
                 val launcherApps = context.getSystemService("launcherapps") as? LauncherApps
                 if (launcherApps != null) {
+                    val intentSender = createDummyIntentSender(context, packageName)
                     val archiveAppMethod = launcherApps.javaClass.getMethod(
                         "archiveApp",
                         String::class.java,
                         IntentSender::class.java
                     )
-                    archiveAppMethod.invoke(launcherApps, packageName, null)
+                    archiveAppMethod.invoke(launcherApps, packageName, intentSender)
                     Log.i(TAG, "LauncherApps native archive requested for $packageName")
                     return true
                 }
@@ -78,5 +73,14 @@ object NativeArchiveHelper {
             Toast.makeText(context, "Native archive error: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
             false
         }
+    }
+
+    private fun createDummyIntentSender(context: Context, packageName: String): IntentSender {
+        val dummyIntent = Intent("com.autocat.morphe.smartlauncher.ARCHIVE_CALLBACK").apply {
+            setPackage(context.packageName)
+            putExtra("archived_package", packageName)
+        }
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        return PendingIntent.getBroadcast(context, packageName.hashCode(), dummyIntent, flags).intentSender
     }
 }

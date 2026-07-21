@@ -5,6 +5,7 @@ import app.revanced.patcher.annotation.Patch
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.tree.ClassNode
 import org.objectweb.asm.tree.InsnList
+import org.objectweb.asm.tree.InsnNode
 import org.objectweb.asm.tree.MethodInsnNode
 import org.objectweb.asm.tree.MethodNode
 import org.objectweb.asm.tree.VarInsnNode
@@ -33,9 +34,12 @@ class ShizukuArchivePatch : BasePatch(
      * Target fingerprint matching Smart Launcher app context popup menu builder.
      */
     fun matchesContextMenuMethod(method: MethodNode): Boolean {
-        return method.name.contains("createPopupMenu") ||
-               method.name.contains("onAppLongClick") ||
-               method.desc.contains("Ljava/lang/String;")
+        // Precise fingerprint: non-static instance method taking (Context/View, String)
+        val isStatic = (method.access and Opcodes.ACC_STATIC) != 0
+        return !isStatic && (
+            method.desc.contains("Landroid/content/Context;Ljava/lang/String;") ||
+            method.desc.contains("Landroid/view/View;Ljava/lang/String;")
+        )
     }
 
     /**
@@ -56,6 +60,8 @@ class ShizukuArchivePatch : BasePatch(
                             false
                         )
                     )
+                    // Pop returned boolean off stack to prevent stack imbalance VerifyError
+                    add(InsnNode(Opcodes.POP))
                 }
 
                 method.instructions.insert(instructions)

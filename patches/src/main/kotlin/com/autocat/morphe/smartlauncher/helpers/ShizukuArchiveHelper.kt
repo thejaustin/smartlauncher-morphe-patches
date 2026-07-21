@@ -2,22 +2,20 @@ package com.autocat.morphe.smartlauncher.helpers
 
 import android.content.Context
 import android.content.pm.PackageManager
-import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import rikka.shizuku.Shizuku
 
 /**
  * Injected helper class for archiving apps via Shizuku on Smart Launcher 6.
- * Supports Samsung Galaxy S22 Ultra (One UI) and standard Android environments.
+ * Asynchronous process execution to prevent ANRs on the main UI thread.
  */
 object ShizukuArchiveHelper {
 
     private const val TAG = "SmartLauncherMorphe_ShizukuArchive"
 
-    /**
-     * Checks if Shizuku service is running and permission is granted.
-     */
     @JvmStatic
     fun isShizukuAvailable(): Boolean {
         return try {
@@ -28,9 +26,6 @@ object ShizukuArchiveHelper {
         }
     }
 
-    /**
-     * Requests Shizuku permission if not already granted.
-     */
     @JvmStatic
     fun requestShizukuPermission(requestCode: Int) {
         try {
@@ -43,10 +38,7 @@ object ShizukuArchiveHelper {
     }
 
     /**
-     * Archives the given package using Shizuku privileges via `pm archive <packageName>`.
-     *
-     * @param context Host application context.
-     * @param packageName Target package name to archive.
+     * Asynchronously archives the given package using Shizuku privileges via `pm archive <packageName>`.
      */
     @JvmStatic
     fun archiveAppWithShizuku(context: Context, packageName: String): Boolean {
@@ -55,30 +47,41 @@ object ShizukuArchiveHelper {
             return false
         }
 
-        return try {
-            Log.i(TAG, "Attempting Shizuku archive for package: $packageName")
-            
-            // Execute `pm archive <packageName>` via Shizuku process executor
-            val process = Shizuku.newProcess(
-                arrayOf("pm", "archive", packageName),
-                null,
-                null
-            )
-            val exitCode = process.waitFor()
+        val mainHandler = Handler(Looper.getMainLooper())
+        Toast.makeText(context, "Archiving $packageName via Shizuku...", Toast.LENGTH_SHORT).show()
 
-            if (exitCode == 0) {
-                Toast.makeText(context, "App $packageName successfully archived", Toast.LENGTH_SHORT).show()
-                true
-            } else {
-                val errorOutput = process.errorStream.bufferedReader().readText()
-                Log.e(TAG, "Shizuku pm archive failed (exit code $exitCode): $errorOutput")
-                Toast.makeText(context, "Failed to archive app: $errorOutput", Toast.LENGTH_LONG).show()
-                false
+        // Execute Shizuku process on a background thread to prevent UI thread ANR
+        Thread {
+            try {
+                Log.i(TAG, "Attempting Shizuku archive for package: $packageName")
+                
+                val process = Shizuku.newProcess(
+                    arrayOf("pm", "archive", packageName),
+                    null,
+                    null
+                )
+
+                // Read output & error streams to prevent process buffer deadlocks
+                val outputText = process.inputStream.bufferedReader().readText()
+                val errorText = process.errorStream.bufferedReader().readText()
+                val exitCode = process.waitFor()
+
+                mainHandler.post {
+                    if (exitCode == 0) {
+                        Toast.makeText(context, "App $packageName successfully archived", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Log.e(TAG, "Shizuku pm archive failed (exit code $exitCode): $errorText")
+                        Toast.makeText(context, "Failed to archive app: ${errorText.ifEmpty { outputText }}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            } catch (e: Throwable) {
+                Log.e(TAG, "Error executing Shizuku archive command for $packageName", e)
+                mainHandler.post {
+                    Toast.makeText(context, "Shizuku archive error: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                }
             }
-        } catch (e: Throwable) {
-            Log.e(TAG, "Error executing Shizuku archive command for $packageName", e)
-            Toast.makeText(context, "Shizuku archive error: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
-            false
-        }
+        }.start()
+
+        return true
     }
 }
