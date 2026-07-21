@@ -23,7 +23,7 @@ object SmartLauncherPatchBundle {
         patches.forEachIndexed { index, patch ->
             println("${index + 1}. [${patch.name}]")
             println("   Description: ${patch.description}")
-            println("   Target: ${patch.targetPackage}")
+            println("   Target: ${patch.compatiblePackages.firstOrNull()?.name ?: "gin.com.it.smartlauncher"}")
         }
         println("==================================================")
     }
