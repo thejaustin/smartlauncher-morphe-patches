@@ -1,0 +1,8 @@
+.gradle/
+build/
+patches/build/
+*.mpp
+*.jar
+.DS_Store
+.idea/
+*.iml

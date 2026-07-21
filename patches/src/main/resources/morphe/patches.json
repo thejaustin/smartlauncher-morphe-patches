@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Hide Archived Apps Toggle",
+    "description": "Adds an experimental setting to Smart Launcher 6 to filter out archived apps from the app drawer.",
+    "className": "com.autocat.morphe.smartlauncher.patches.HideArchivedAppsPatch",
+    "use": true,
+    "compatiblePackages": [
+      {
+        "name": "gin.com.it.smartlauncher",
+        "versions": []
+      },
+      {
+        "name": "*",
+        "versions": []
+      }
+    ]
+  },
+  {
+    "name": "Shizuku App Archiving",
+    "description": "Adds a context menu item to archive apps via Shizuku (`pm archive`) in Smart Launcher 6.",
+    "className": "com.autocat.morphe.smartlauncher.patches.ShizukuArchivePatch",
+    "use": true,
+    "compatiblePackages": [
+      {
+        "name": "gin.com.it.smartlauncher",
+        "versions": []
+      },
+      {
+        "name": "*",
+        "versions": []
+      }
+    ]
+  },
+  {
+    "name": "Official Device App Archiving",
+    "description": "Enables system PackageInstaller/LauncherApps native archiving on supported devices (e.g. S22 Ultra with One UI / Android 15+).",
+    "className": "com.autocat.morphe.smartlauncher.patches.NativeArchivePatch",
+    "use": true,
+    "compatiblePackages": [
+      {
+        "name": "gin.com.it.smartlauncher",
+        "versions": []
+      },
+      {
+        "name": "*",
+        "versions": []
+      }
+    ]
+  }
+]
