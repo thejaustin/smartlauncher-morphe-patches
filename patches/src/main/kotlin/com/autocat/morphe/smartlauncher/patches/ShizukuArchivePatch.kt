@@ -30,21 +30,15 @@ class ShizukuArchivePatch : BasePatch(
     targetPackage = "gin.com.it.smartlauncher"
 ) {
 
-    /**
-     * Target fingerprint matching Smart Launcher app context popup menu builder.
-     */
     fun matchesContextMenuMethod(method: MethodNode): Boolean {
-        // Precise fingerprint: non-static instance method taking (Context/View, String)
         val isStatic = (method.access and Opcodes.ACC_STATIC) != 0
         return !isStatic && (
-            method.desc.contains("Landroid/content/Context;Ljava/lang/String;") ||
-            method.desc.contains("Landroid/view/View;Ljava/lang/String;")
+            method.desc.contains("Ljava/lang/String;") ||
+            method.desc.contains("Landroid/content/Context;") ||
+            method.desc.contains("Landroid/view/View;")
         )
     }
 
-    /**
-     * Transforms context menu bytecode to append the "Archive (Shizuku)" action item.
-     */
     override fun transform(classNode: ClassNode) {
         for (method in classNode.methods) {
             if (matchesContextMenuMethod(method)) {
@@ -56,11 +50,10 @@ class ShizukuArchivePatch : BasePatch(
                             Opcodes.INVOKESTATIC,
                             "com/autocat/morphe/smartlauncher/helpers/ShizukuArchiveHelper",
                             "archiveAppWithShizuku",
-                            "(Landroid/content/Context;Ljava/lang/String;)Z",
+                            "(Ljava/lang/Object;Ljava/lang/String;)Z",
                             false
                         )
                     )
-                    // Pop returned boolean off stack to prevent stack imbalance VerifyError
                     add(InsnNode(Opcodes.POP))
                 }
 

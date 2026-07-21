@@ -12,13 +12,13 @@ import android.widget.Toast
 
 /**
  * Injected helper class for invoking official system device app archiving APIs.
- * Supports official device archiving on Samsung Galaxy S22 Ultra (One UI) & Android 15+.
+ * Polymorphic target instance handling to prevent ASM type mismatch VerifyErrors.
  */
 object NativeArchiveHelper {
 
     private const val TAG = "SmartLauncherMorphe_NativeArchive"
-    private const val FLAG_IMMUTABLE = 0x04000000 // PendingIntent.FLAG_IMMUTABLE (API 23+)
-    private const val FLAG_UPDATE_CURRENT = 0x08000000 // PendingIntent.FLAG_UPDATE_CURRENT
+    private const val FLAG_IMMUTABLE = 0x04000000
+    private const val FLAG_UPDATE_CURRENT = 0x08000000
 
     @JvmStatic
     fun isNativeArchiveSupported(): Boolean {
@@ -27,9 +27,16 @@ object NativeArchiveHelper {
 
     /**
      * Triggers official system app archiving request.
+     * Accepts generic target instance (View, Context, or Fragment).
      */
     @JvmStatic
-    fun requestNativeArchive(context: Context, packageName: String): Boolean {
+    fun requestNativeArchive(targetObj: Any?, packageName: String): Boolean {
+        val context = resolveContext(targetObj)
+        if (context == null) {
+            Log.e(TAG, "Unable to resolve Context from targetObj: $targetObj")
+            return false
+        }
+
         if (!isNativeArchiveSupported()) {
             Toast.makeText(context, "Native archiving is not supported on this Android version", Toast.LENGTH_SHORT).show()
             return false
@@ -75,6 +82,20 @@ object NativeArchiveHelper {
             Log.e(TAG, "Failed to invoke native requestArchive for $packageName", e)
             Toast.makeText(context, "Native archive error: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
             false
+        }
+    }
+
+    private fun resolveContext(obj: Any?): Context? {
+        if (obj == null) return null
+        if (obj is Context) return obj
+
+        return try {
+            val method = obj.javaClass.methods.firstOrNull { 
+                it.name == "getContext" || it.name == "getApplicationContext" 
+            }
+            method?.invoke(obj) as? Context
+        } catch (e: Throwable) {
+            null
         }
     }
 

@@ -30,20 +30,15 @@ class NativeArchivePatch : BasePatch(
     targetPackage = "gin.com.it.smartlauncher"
 ) {
 
-    /**
-     * Target fingerprint for app action handlers in Smart Launcher 6.
-     */
     fun matchesAppActionMethod(method: MethodNode): Boolean {
         val isStatic = (method.access and Opcodes.ACC_STATIC) != 0
         return !isStatic && (
-            method.desc.contains("Landroid/content/Context;Ljava/lang/String;") ||
-            method.desc.contains("Landroid/view/View;Ljava/lang/String;")
+            method.desc.contains("Ljava/lang/String;") ||
+            method.desc.contains("Landroid/content/Context;") ||
+            method.desc.contains("Landroid/view/View;")
         )
     }
 
-    /**
-     * Transforms app action bytecode to route native archiving requests.
-     */
     override fun transform(classNode: ClassNode) {
         for (method in classNode.methods) {
             if (matchesAppActionMethod(method)) {
@@ -55,11 +50,10 @@ class NativeArchivePatch : BasePatch(
                             Opcodes.INVOKESTATIC,
                             "com/autocat/morphe/smartlauncher/helpers/NativeArchiveHelper",
                             "requestNativeArchive",
-                            "(Landroid/content/Context;Ljava/lang/String;)Z",
+                            "(Ljava/lang/Object;Ljava/lang/String;)Z",
                             false
                         )
                     )
-                    // Pop returned boolean off stack to prevent stack imbalance VerifyError
                     add(InsnNode(Opcodes.POP))
                 }
 

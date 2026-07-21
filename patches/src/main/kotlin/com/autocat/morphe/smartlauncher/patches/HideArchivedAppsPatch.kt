@@ -32,17 +32,11 @@ class HideArchivedAppsPatch : BasePatch(
     targetPackage = "gin.com.it.smartlauncher"
 ) {
 
-    /**
-     * Target fingerprint criteria for Smart Launcher app drawer filter methods.
-     */
     fun matchesFilterMethod(method: MethodNode): Boolean {
         return method.desc.contains("Landroid/content/pm/ApplicationInfo;") ||
                method.desc.contains("Landroid/content/pm/LauncherActivityInfo;")
     }
 
-    /**
-     * Executes bytecode injection into the matched app filter method.
-     */
     override fun transform(classNode: ClassNode) {
         for (method in classNode.methods) {
             if (matchesFilterMethod(method)) {
@@ -60,11 +54,32 @@ class HideArchivedAppsPatch : BasePatch(
                         )
                     )
                     add(JumpInsnNode(Opcodes.IFEQ, skipLabel))
-                    if (method.desc.endsWith("Z")) {
-                        add(InsnNode(Opcodes.ICONST_0))
-                        add(InsnNode(Opcodes.IRETURN))
-                    } else {
-                        add(InsnNode(Opcodes.RETURN))
+
+                    val returnType = method.desc.substringAfterLast(')')
+                    when {
+                        returnType == "Z" || returnType == "I" || returnType == "B" || returnType == "C" || returnType == "S" -> {
+                            add(InsnNode(Opcodes.ICONST_0))
+                            add(InsnNode(Opcodes.IRETURN))
+                        }
+                        returnType == "J" -> {
+                            add(InsnNode(Opcodes.LCONST_0))
+                            add(InsnNode(Opcodes.LRETURN))
+                        }
+                        returnType == "F" -> {
+                            add(InsnNode(Opcodes.FCONST_0))
+                            add(InsnNode(Opcodes.FRETURN))
+                        }
+                        returnType == "D" -> {
+                            add(InsnNode(Opcodes.DCONST_0))
+                            add(InsnNode(Opcodes.DRETURN))
+                        }
+                        returnType.startsWith("L") || returnType.startsWith("[") -> {
+                            add(InsnNode(Opcodes.ACONST_NULL))
+                            add(InsnNode(Opcodes.ARETURN))
+                        }
+                        else -> {
+                            add(InsnNode(Opcodes.RETURN))
+                        }
                     }
                     add(skipLabel)
                 }
