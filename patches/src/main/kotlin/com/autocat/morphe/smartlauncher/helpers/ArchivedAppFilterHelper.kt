@@ -1,10 +1,10 @@
 package com.autocat.morphe.smartlauncher.helpers
 
-import android.app.Application
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherActivityInfo
 import android.util.Log
+import java.io.File
 
 /**
  * Robust runtime helper for Smart Launcher 6.
@@ -45,17 +45,20 @@ object ArchivedAppFilterHelper {
 
     @JvmStatic
     fun isAppArchived(appInfo: ApplicationInfo): Boolean {
-        val isArchivedFlag = (appInfo.flags and FLAG_ARCHIVED) != 0
-        val isZeroLengthApk = appInfo.sourceDir != null && appInfo.sourceDir.isEmpty()
-        return isArchivedFlag || isZeroLengthApk
+        return try {
+            val isArchivedFlag = (appInfo.flags and FLAG_ARCHIVED) != 0
+            val isZeroLengthApk = appInfo.sourceDir.isNullOrEmpty() || !File(appInfo.sourceDir).exists()
+            isArchivedFlag || isZeroLengthApk
+        } catch (e: Throwable) {
+            false
+        }
     }
 
-    private fun resolveContext(obj: Any?): Context? {
+    fun resolveContext(obj: Any?): Context? {
         if (obj == null) return null
         if (obj is Context) return obj
-        
+
         return try {
-            // Reflectively check getContext() or getApplicationContext()
             val method = obj.javaClass.methods.firstOrNull { 
                 it.name == "getContext" || it.name == "getApplicationContext" 
             }
@@ -72,9 +75,16 @@ object ArchivedAppFilterHelper {
 
         return try {
             val method = obj.javaClass.methods.firstOrNull { 
-                it.name == "getApplicationInfo" || it.name == "getAppInfo" 
+                it.name == "getApplicationInfo" || it.name == "getAppInfo" || it.name == "getInfo"
             }
-            method?.invoke(obj) as? ApplicationInfo
+            (method?.invoke(obj) as? ApplicationInfo) ?: run {
+                // Check for field access if getter is obfuscated
+                val field = obj.javaClass.declaredFields.firstOrNull { 
+                    ApplicationInfo::class.java.isAssignableFrom(it.type)
+                }
+                field?.isAccessible = true
+                field?.get(obj) as? ApplicationInfo
+            }
         } catch (e: Throwable) {
             null
         }

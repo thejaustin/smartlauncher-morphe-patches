@@ -31,14 +31,14 @@ object NativeArchiveHelper {
      */
     @JvmStatic
     fun requestNativeArchive(targetObj: Any?, packageName: String): Boolean {
-        val context = resolveContext(targetObj)
+        val context = ArchivedAppFilterHelper.resolveContext(targetObj)
         if (context == null) {
             Log.e(TAG, "Unable to resolve Context from targetObj: $targetObj")
             return false
         }
 
         if (!isNativeArchiveSupported()) {
-            Toast.makeText(context, "Native archiving is not supported on this Android version", Toast.LENGTH_SHORT).show()
+            safeShowToast(context, "Native archiving is not supported on this Android version", Toast.LENGTH_SHORT)
             return false
         }
 
@@ -55,7 +55,7 @@ object NativeArchiveHelper {
 
             requestArchiveMethod.invoke(packageInstaller, packageName, intentSender)
             Log.i(TAG, "Native archive requested for $packageName")
-            Toast.makeText(context, "Requesting native archive for $packageName...", Toast.LENGTH_SHORT).show()
+            safeShowToast(context, "Requesting native archive for $packageName...", Toast.LENGTH_SHORT)
             true
         } catch (e: NoSuchMethodException) {
             try {
@@ -76,35 +76,34 @@ object NativeArchiveHelper {
             }
             
             Log.e(TAG, "PackageInstaller requestArchive method not found", e)
-            Toast.makeText(context, "Native archive API unavailable on this device build", Toast.LENGTH_SHORT).show()
+            safeShowToast(context, "Native archive API unavailable on this device build", Toast.LENGTH_SHORT)
             false
         } catch (e: Throwable) {
             Log.e(TAG, "Failed to invoke native requestArchive for $packageName", e)
-            Toast.makeText(context, "Native archive error: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+            safeShowToast(context, "Native archive error: ${e.localizedMessage}", Toast.LENGTH_SHORT)
             false
         }
     }
 
-    private fun resolveContext(obj: Any?): Context? {
-        if (obj == null) return null
-        if (obj is Context) return obj
-
-        return try {
-            val method = obj.javaClass.methods.firstOrNull { 
-                it.name == "getContext" || it.name == "getApplicationContext" 
-            }
-            method?.invoke(obj) as? Context
+    private fun safeShowToast(context: Context, text: String, duration: Int) {
+        try {
+            Toast.makeText(context, text, duration).show()
         } catch (e: Throwable) {
-            null
+            Log.w(TAG, "Toast display failed: $text", e)
         }
     }
 
-    private fun createDummyIntentSender(context: Context, packageName: String): IntentSender {
-        val dummyIntent = Intent("com.autocat.morphe.smartlauncher.ARCHIVE_CALLBACK").apply {
-            setPackage(context.packageName)
-            putExtra("archived_package", packageName)
+    private fun createDummyIntentSender(context: Context, packageName: String): IntentSender? {
+        return try {
+            val dummyIntent = Intent("com.autocat.morphe.smartlauncher.ARCHIVE_CALLBACK").apply {
+                setPackage(context.packageName)
+                putExtra("archived_package", packageName)
+            }
+            val flags = FLAG_UPDATE_CURRENT or FLAG_IMMUTABLE
+            PendingIntent.getBroadcast(context, packageName.hashCode(), dummyIntent, flags)?.intentSender
+        } catch (e: Throwable) {
+            Log.w(TAG, "Failed to create dummy IntentSender", e)
+            null
         }
-        val flags = FLAG_UPDATE_CURRENT or FLAG_IMMUTABLE
-        return PendingIntent.getBroadcast(context, packageName.hashCode(), dummyIntent, flags).intentSender
     }
 }
