@@ -16,18 +16,18 @@ import org.objectweb.asm.tree.VarInsnNode
 @Patch(
     name = "Official Device App Archiving",
     description = "Enables system PackageInstaller/LauncherApps native archiving on supported devices (e.g. S22 Ultra with One UI / Android 15+).",
-    compatiblePackages = []
+    compatiblePackages = [CompatiblePackage(name = "gin.com.it.smartlauncher")]
 )
 @app.morphe.patcher.annotation.Patch(
     name = "Official Device App Archiving",
     description = "Enables system PackageInstaller/LauncherApps native archiving on supported devices (e.g. S22 Ultra with One UI / Android 15+).",
-    compatiblePackages = []
+    compatiblePackages = [app.morphe.patcher.annotation.CompatiblePackage(name = "gin.com.it.smartlauncher")]
 )
-class NativeArchivePatch : BasePatch() {
-
-    override val name: String = "Official Device App Archiving"
-    override val description: String = "Enables system PackageInstaller/LauncherApps native archiving on supported devices (e.g. S22 Ultra with One UI / Android 15+)."
-    override val targetPackage: String = "gin.com.it.smartlauncher"
+class NativeArchivePatch : BasePatch(
+    name = "Official Device App Archiving",
+    description = "Enables system PackageInstaller/LauncherApps native archiving on supported devices (e.g. S22 Ultra with One UI / Android 15+).",
+    targetPackage = "gin.com.it.smartlauncher"
+) {
 
     /**
      * Target fingerprint for app action handlers in Smart Launcher 6.

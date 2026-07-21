@@ -16,18 +16,18 @@ import org.objectweb.asm.tree.VarInsnNode
 @Patch(
     name = "Shizuku App Archiving",
     description = "Adds a context menu item to archive apps via Shizuku (`pm archive`) in Smart Launcher 6.",
-    compatiblePackages = []
+    compatiblePackages = [CompatiblePackage(name = "gin.com.it.smartlauncher")]
 )
 @app.morphe.patcher.annotation.Patch(
     name = "Shizuku App Archiving",
     description = "Adds a context menu item to archive apps via Shizuku (`pm archive`) in Smart Launcher 6.",
-    compatiblePackages = []
+    compatiblePackages = [app.morphe.patcher.annotation.CompatiblePackage(name = "gin.com.it.smartlauncher")]
 )
-class ShizukuArchivePatch : BasePatch() {
-
-    override val name: String = "Shizuku App Archiving"
-    override val description: String = "Adds a context menu item to archive apps via Shizuku (`pm archive`) in Smart Launcher 6."
-    override val targetPackage: String = "gin.com.it.smartlauncher"
+class ShizukuArchivePatch : BasePatch(
+    name = "Shizuku App Archiving",
+    description = "Adds a context menu item to archive apps via Shizuku (`pm archive`) in Smart Launcher 6.",
+    targetPackage = "gin.com.it.smartlauncher"
+) {
 
     /**
      * Target fingerprint matching Smart Launcher app context popup menu builder.

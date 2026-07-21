@@ -19,18 +19,18 @@ import org.objectweb.asm.tree.VarInsnNode
 @Patch(
     name = "Hide Archived Apps Toggle",
     description = "Adds an experimental setting to Smart Launcher 6 to filter out archived apps from the app drawer.",
-    compatiblePackages = []
+    compatiblePackages = [CompatiblePackage(name = "gin.com.it.smartlauncher")]
 )
 @app.morphe.patcher.annotation.Patch(
     name = "Hide Archived Apps Toggle",
     description = "Adds an experimental setting to Smart Launcher 6 to filter out archived apps from the app drawer.",
-    compatiblePackages = []
+    compatiblePackages = [app.morphe.patcher.annotation.CompatiblePackage(name = "gin.com.it.smartlauncher")]
 )
-class HideArchivedAppsPatch : BasePatch() {
-
-    override val name: String = "Hide Archived Apps Toggle"
-    override val description: String = "Adds an experimental setting to Smart Launcher 6 to filter out archived apps from the app drawer."
-    override val targetPackage: String = "gin.com.it.smartlauncher"
+class HideArchivedAppsPatch : BasePatch(
+    name = "Hide Archived Apps Toggle",
+    description = "Adds an experimental setting to Smart Launcher 6 to filter out archived apps from the app drawer.",
+    targetPackage = "gin.com.it.smartlauncher"
+) {
 
     /**
      * Target fingerprint criteria for Smart Launcher app drawer filter methods.

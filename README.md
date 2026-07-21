@@ -1,8 +1,8 @@
 # 🚀 Smart Launcher 6 - Morphe Patch Suite
 
-[![Add to Morphe](https://img.shields.io/badge/Add%20to-Morphe-7C3AED?style=for-the-badge&logo=android&logoColor=white)](morphe-manager://add-source?url=https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/smartlauncher-morphe-patches/main/patches-bundle.json)
-[![Download .mpp](https://img.shields.io/badge/Download-.mpp%20Package-10B981?style=for-the-badge&logo=android&logoColor=white)](https://github.com/YOUR_GITHUB_USERNAME/smartlauncher-morphe-patches/releases/latest/download/smartlauncher-morphe-patches.mpp)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/YOUR_GITHUB_USERNAME/smartlauncher-morphe-patches/release.yml?branch=main&style=for-the-badge&logo=github)](https://github.com/YOUR_GITHUB_USERNAME/smartlauncher-morphe-patches/actions)
+[![Add to Morphe](https://img.shields.io/badge/Add%20to-Morphe-7C3AED?style=for-the-badge&logo=android&logoColor=white)](morphe-manager://add-source?url=https://raw.githubusercontent.com/thejaustin/smartlauncher-morphe-patches/main/patches-bundle.json)
+[![Download .mpp](https://img.shields.io/badge/Download-.mpp%20Package-10B981?style=for-the-badge&logo=android&logoColor=white)](https://github.com/thejaustin/smartlauncher-morphe-patches/releases/latest/download/smartlauncher-morphe-patches.mpp)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/thejaustin/smartlauncher-morphe-patches/release.yml?branch=main&style=for-the-badge&logo=github)](https://github.com/thejaustin/smartlauncher-morphe-patches/actions)
 
 Custom **Morphe Patch Package (`.mpp`)** suite for **Smart Launcher 6**, specially designed for devices like the **Samsung Galaxy S22 Ultra** (One UI / Android 14+ / Android 15+).
 
@@ -12,12 +12,12 @@ Custom **Morphe Patch Package (`.mpp`)** suite for **Smart Launcher 6**, special
 
 ### Method 1: Direct "Add to Morphe" Link (Recommended)
 Click the badge above or use the deep link on your Android device with Morphe Manager installed:
-[👉 **Click here to add patch source to Morphe Manager**](morphe-manager://add-source?url=https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/smartlauncher-morphe-patches/main/patches-bundle.json)
+[👉 **Click here to add patch source to Morphe Manager**](morphe-manager://add-source?url=https://raw.githubusercontent.com/thejaustin/smartlauncher-morphe-patches/main/patches-bundle.json)
 
 ---
 
 ### Method 2: Manual Import
-1. Download the latest **[`smartlauncher-morphe-patches.mpp`](https://github.com/YOUR_GITHUB_USERNAME/smartlauncher-morphe-patches/releases/latest/download/smartlauncher-morphe-patches.mpp)** release file.
+1. Download the latest **[`smartlauncher-morphe-patches.mpp`](https://github.com/thejaustin/smartlauncher-morphe-patches/releases/latest/download/smartlauncher-morphe-patches.mpp)** release file.
 2. Open **Morphe Manager** on your Android device.
 3. On the **Home Screen**, tap **Import Patches** (or **+**).
 4. Select `smartlauncher-morphe-patches.mpp` from your **Downloads** folder.
@@ -47,7 +47,7 @@ Building the `.mpp` patch container locally:
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_GITHUB_USERNAME/smartlauncher-morphe-patches.git
+git clone https://github.com/thejaustin/smartlauncher-morphe-patches.git
 cd smartlauncher-morphe-patches
 
 # Build Morphe Patch Package (.mpp)

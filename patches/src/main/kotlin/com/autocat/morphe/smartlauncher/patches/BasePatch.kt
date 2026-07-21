@@ -1,20 +1,27 @@
 package com.autocat.morphe.smartlauncher.patches
 
+import app.revanced.patcher.patch.BytecodeContext
+import app.revanced.patcher.patch.BytecodePatch
+import app.revanced.patcher.patch.annotation.CompatiblePackage
 import org.objectweb.asm.tree.ClassNode
 
 /**
- * Base bytecode patch implementation compatible with Morphe / ReVanced patcher engines.
+ * Common base patch extending ReVanced & Morphe patcher framework standards.
  */
-abstract class BasePatch : app.revanced.patcher.patch.BytecodePatch() {
-    abstract val name: String
-    abstract val description: String
-    abstract val targetPackage: String
-    
+abstract class BasePatch(
+    name: String,
+    description: String,
+    targetPackage: String
+) : BytecodePatch(
+    name = name,
+    description = description,
+    compatiblePackages = setOf(CompatiblePackage(name = targetPackage))
+) {
     abstract fun transform(classNode: ClassNode)
 
-    override fun execute(context: Any) {
-        if (context is ClassNode) {
-            transform(context)
+    override fun execute(context: BytecodeContext) {
+        context.classes.forEach { classNode ->
+            transform(classNode)
         }
     }
 }
