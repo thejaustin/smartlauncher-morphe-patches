@@ -3,6 +3,7 @@ build/
 patches/build/
 *.mpp
 *.jar
+!gradle/wrapper/gradle-wrapper.jar
 .DS_Store
 .idea/
 *.iml
