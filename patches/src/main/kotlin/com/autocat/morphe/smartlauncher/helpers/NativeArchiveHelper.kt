@@ -17,6 +17,8 @@ import android.widget.Toast
 object NativeArchiveHelper {
 
     private const val TAG = "SmartLauncherMorphe_NativeArchive"
+    private const val FLAG_IMMUTABLE = 0x04000000 // PendingIntent.FLAG_IMMUTABLE (API 23+)
+    private const val FLAG_UPDATE_CURRENT = 0x08000000 // PendingIntent.FLAG_UPDATE_CURRENT
 
     @JvmStatic
     fun isNativeArchiveSupported(): Boolean {
@@ -34,7 +36,8 @@ object NativeArchiveHelper {
         }
 
         return try {
-            val packageInstaller = context.packageManager.packageInstaller
+            val getPackageInstallerMethod = context.packageManager.javaClass.getMethod("getPackageInstaller")
+            val packageInstaller = getPackageInstallerMethod.invoke(context.packageManager)
             val intentSender = createDummyIntentSender(context, packageName)
 
             val requestArchiveMethod = packageInstaller.javaClass.getMethod(
@@ -80,7 +83,7 @@ object NativeArchiveHelper {
             setPackage(context.packageName)
             putExtra("archived_package", packageName)
         }
-        val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        val flags = FLAG_UPDATE_CURRENT or FLAG_IMMUTABLE
         return PendingIntent.getBroadcast(context, packageName.hashCode(), dummyIntent, flags).intentSender
     }
 }
