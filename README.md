@@ -30,17 +30,38 @@ Choose any of the options below on your Android device:
 
 ## 🌟 Included Patches
 
-### 1. 🙈 Toggle Archived Apps as Hidden (`HideArchivedAppsPatch`)
-- Adds an experimental preference setting (`experimental_hide_archived_apps`).
-- Filters out all archived apps (`ApplicationInfo.FLAG_ARCHIVED` / zero-byte package entries) from the launcher app drawer.
+### 1. 🙈 Hide archived apps (`hideArchivedAppsPatch`) - implemented
+- Filters archived apps (Android 15+ app archiving) out of the app drawer, the add-to-home-screen picker, and the shortcut picker.
+- Applying the patch is the toggle - there's no separate in-app setting.
+- Not yet verified on-device; see the "Development status" section below.
 
-### 2. ⚡ Shizuku App Archiving (`ShizukuArchivePatch`)
-- Integrates **Shizuku** ADB binder support directly into Smart Launcher's context popup menu.
-- Executes `pm archive <package>` with elevated privileges on Samsung Galaxy S22 Ultra and all Shizuku-supported devices.
+### 2. ⚡ Shizuku app archiving (`shizukuArchivePatch`) - not implemented
+### 3. 📱 Native app archiving (`nativeArchivePatch`) - not implemented
 
-### 3. 📱 Official Device App Archiving (`NativeArchivePatch`)
-- Enables native system app archiving via `PackageInstaller.requestArchive()` / `LauncherApps.archiveApp()`.
-- Optimized for Android 15+ / Samsung One UI 7.
+Both throw a clear error if selected. See the doc comments in
+`ShizukuArchivePatch.kt` / `NativeArchivePatch.kt` for exactly what was
+verified against the real APK and what's still missing (a safe injection
+point into Smart Launcher's Compose-based long-press menu, and for Shizuku
+specifically, a bound UserService since `Shizuku.newProcess` is private in
+the current API).
+
+## 🚧 Development status
+
+This repo was rebuilt from scratch to use the real `app.morphe.patches`
+Gradle plugin and `app.morphe:morphe-patcher` API (fingerprints against
+dexlib2/smali) - the version before this used hand-written stub annotations
+and plain-JVM ASM bytecode editing, which is not what Morphe's patch loader
+or Android's dex format actually use, so no patch it produced was ever
+discoverable by Morphe regardless of how it was bug-fixed. The compatible
+package was also wrong (`gin.com.it.smartlauncher` instead of the real
+`ginlemon.flowerfree`, confirmed via `aapt dump badging` against the actual
+APK).
+
+`hideArchivedAppsPatch`'s fingerprint and injection point are based on
+decompiling the real Smart Launcher 6 v6.6 build 002 APK (jadx + apktool),
+not guessed - but it has not been applied to a real APK and run on a device
+yet. Building the .mpp and testing it in Morphe Manager against a real
+install is the next step.
 
 ---
 

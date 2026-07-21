@@ -1,60 +1,46 @@
-plugins {
-    id("org.jetbrains.kotlin.jvm")
-}
+group = "com.autocat.morphe.smartlauncher"
 
-dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.22")
-    compileOnly("com.google.android:android:4.1.1.4")
-    compileOnly("org.ow2.asm:asm-tree:9.6")
-}
-
-java {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
+patches {
+    about {
+        name = "Smart Launcher 6 Morphe Patches"
+        description = "Custom patches for Smart Launcher 6, focused on app-archiving support."
+        source = "git@github.com:thejaustin/smartlauncher-morphe-patches.git"
+        author = "thejaustin"
+        contact = "na"
+        website = "https://github.com/thejaustin/smartlauncher-morphe-patches"
+        license = "GPLv3"
+    }
 }
 
 kotlin {
     compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+        freeCompilerArgs.add("-Xcontext-parameters")
     }
 }
 
-tasks.named<Jar>("jar") {
-    archiveFileName.set("smartlauncher-morphe-patches.jar")
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    from(sourceSets.main.get().output) {
-        exclude("android/**")
-        exclude("rikka/**")
-    }
-    manifest {
-        attributes(
-            "Manifest-Version" to "1.0",
-            "Patch-Bundle-Name" to "Smart Launcher 6 Morphe Patches",
-            "Patch-Bundle-Version" to "1.0.0",
-            "Patch-Bundle-Author" to "AutoCat Development",
-            "Main-Class" to "com.autocat.morphe.smartlauncher.SmartLauncherPatchBundle"
-        )
-    }
+// Separate configuration so gson is available at runtime for the
+// generatePatchesList task but never bundled into the APK.
+val patchListGeneratorClasspath: Configuration by configurations.creating
+
+dependencies {
+    compileOnly(libs.gson)
+    patchListGeneratorClasspath(libs.gson)
 }
 
-val createMppPackage = tasks.register<Jar>("mppPackage") {
-    archiveFileName.set("smartlauncher-morphe-patches.mpp")
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    from(sourceSets.main.get().output) {
-        exclude("android/**")
-        exclude("rikka/**")
-    }
-    manifest {
-        attributes(
-            "Manifest-Version" to "1.0",
-            "Patch-Bundle-Name" to "Smart Launcher 6 Morphe Patches",
-            "Patch-Bundle-Version" to "1.0.0",
-            "Patch-Bundle-Author" to "AutoCat Development",
-            "Main-Class" to "com.autocat.morphe.smartlauncher.SmartLauncherPatchBundle"
-        )
-    }
-}
+tasks {
+    // Optional convenience: regenerates ../patches-list.json (a human-facing
+    // listing of patch names/descriptions for the repo README / Morphe's
+    // "Add Source" preview). Not required for Morphe to load or apply the
+    // .mpp - that happens purely via reflection over the built jar, see
+    // util/PatchListGenerator.kt. This repo doesn't use semantic-release,
+    // so unlike the official Morphe template this isn't wired to a
+    // "publish" task - run manually with `./gradlew :patches:generatePatchesList`.
+    register<JavaExec>("generatePatchesList") {
+        description = "Regenerate patches-list.json from the built patch bundle"
 
-tasks.register("buildAndroid") {
-    dependsOn(createMppPackage)
+        dependsOn(build)
+
+        classpath = sourceSets["main"].runtimeClasspath + patchListGeneratorClasspath
+        mainClass.set("util.PatchListGeneratorKt")
+    }
 }

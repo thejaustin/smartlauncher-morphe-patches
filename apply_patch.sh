@@ -2,7 +2,6 @@
 set -e
 
 PATCH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-JAR_FILE="$PATCH_DIR/patches/build/libs/smartlauncher-morphe-patches.mpp"
 OUTPUT_APK="$PATCH_DIR/smartlauncher6-patched.apk"
 
 echo "=================================================="
@@ -10,9 +9,11 @@ echo " Smart Launcher 6 - Morphe Patch Installer"
 echo " Target Device: Samsung Galaxy S22 Ultra"
 echo "=================================================="
 
-if [ ! -f "$JAR_FILE" ]; then
+JAR_FILE="$(find "$PATCH_DIR/patches/build/libs" -maxdepth 1 -name '*.mpp' 2>/dev/null | head -n1)"
+if [ -z "$JAR_FILE" ]; then
     echo "🔨 Building Morphe Patch Package (.mpp)..."
-    (cd "$PATCH_DIR" && bash ./gradlew mppPackage)
+    (cd "$PATCH_DIR" && bash ./gradlew buildAndroid)
+    JAR_FILE="$(find "$PATCH_DIR/patches/build/libs" -maxdepth 1 -name '*.mpp' 2>/dev/null | head -n1)"
 fi
 
 echo "✅ Morphe Patch Package (.mpp) ready at:"
@@ -26,9 +27,9 @@ if [ -z "$1" ]; then
     echo "     - Go to Settings -> Sources / Local Patch Bundle."
     echo "     - Select/Import: $JAR_FILE"
     echo "     - Select Smart Launcher 6 APK and apply the patches:"
-    echo "       • Hide Archived Apps Toggle"
-    echo "       • Shizuku App Archiving"
-    echo "       • Official Device App Archiving"
+    echo "       • Hide archived apps (implemented)"
+    echo "       • Shizuku app archiving (not yet implemented)"
+    echo "       • Native app archiving (not yet implemented)"
     echo ""
     echo "  2. Option B (CLI / Automation):"
     echo "     - Run: ./apply_patch.sh /path/to/smartlauncher6.apk"

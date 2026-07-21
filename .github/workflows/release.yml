@@ -25,6 +25,9 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
@@ -32,19 +35,28 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Morphe Patch Package (.mpp)
+        # The app.morphe.patches plugin and app.morphe:morphe-patcher dependency
+        # live in a GitHub Packages Maven registry owned by the MorpheApp org
+        # (https://maven.pkg.github.com/MorpheApp/registry). The default
+        # secrets.GITHUB_TOKEN is scoped to this repo/owner only and cannot
+        # read another org's package registry, so this needs a real PAT with
+        # read:packages added as the MORPHE_REGISTRY_TOKEN repo secret.
         run: ./gradlew buildAndroid
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.MORPHE_REGISTRY_TOKEN }}
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: smartlauncher-morphe-patches
-          path: patches/build/libs/smartlauncher-morphe-patches.mpp
+          path: patches/build/libs/*.mpp
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: patches/build/libs/smartlauncher-morphe-patches.mpp
+          files: patches/build/libs/*.mpp
           name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
