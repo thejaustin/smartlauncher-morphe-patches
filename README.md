@@ -1,6 +1,6 @@
 # 🚀 Smart Launcher 6 - Morphe Patch Suite
 
-[![Add to Morphe](https://img.shields.io/badge/Add%20to-Morphe-7C3AED?style=for-the-badge&logo=android&logoColor=white)](morphe-manager://add-source?url=https://raw.githubusercontent.com/thejaustin/smartlauncher-morphe-patches/main/patches-bundle.json)
+[![Add to Morphe](https://img.shields.io/badge/Add%20to-Morphe-7C3AED?style=for-the-badge&logo=android&logoColor=white)](https://morphe.software/add-source?github=thejaustin/smartlauncher-morphe-patches)
 [![Download .mpp](https://img.shields.io/badge/Download-.mpp%20Package-10B981?style=for-the-badge&logo=android&logoColor=white)](https://github.com/thejaustin/smartlauncher-morphe-patches/releases/latest/download/smartlauncher-morphe-patches.mpp)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/thejaustin/smartlauncher-morphe-patches/release.yml?branch=main&style=for-the-badge&logo=github)](https://github.com/thejaustin/smartlauncher-morphe-patches/actions)
 
@@ -10,9 +10,12 @@ Custom **Morphe Patch Package (`.mpp`)** suite for **Smart Launcher 6**, special
 
 ## 📲 Quick Installation
 
-### Method 1: Direct "Add to Morphe" Link (Recommended)
-Click the badge above or use the deep link on your Android device with Morphe Manager installed:
-[👉 **Click here to add patch source to Morphe Manager**](morphe-manager://add-source?url=https://raw.githubusercontent.com/thejaustin/smartlauncher-morphe-patches/main/patches-bundle.json)
+### Method 1: Add Source to Morphe Manager (Recommended)
+Choose any of the options below on your Android device:
+
+- 🌐 [**Option A: Add Source via Morphe Web Portal**](https://morphe.software/add-source?github=thejaustin/smartlauncher-morphe-patches)
+- 📱 [**Option B: Add Source via Morphe App Deep Link (`morphe-manager://`)**](morphe-manager://add-source?url=https://raw.githubusercontent.com/thejaustin/smartlauncher-morphe-patches/main/patches-bundle.json)
+- ⚡ [**Option C: Add Source via Morphe Protocol (`morphe://`)**](morphe://add-source?github=thejaustin/smartlauncher-morphe-patches)
 
 ---
 
