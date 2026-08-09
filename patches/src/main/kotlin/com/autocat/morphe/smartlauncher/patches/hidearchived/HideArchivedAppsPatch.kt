@@ -42,7 +42,7 @@ val hideArchivedAppsPatch = bytecodePatch(
             method.addInstructions(
                 invokeIndex + 2,
                 """
-                    invoke-static {v$resultRegister}, Lcom/autocat/morphe/smartlauncher/extension/ArchivedAppFilter;->filter(Ljava/util/List;)Ljava/util/List;
+                    invoke-static/range {v$resultRegister .. v$resultRegister}, Lcom/autocat/morphe/smartlauncher/extension/ArchivedAppFilter;->filter(Ljava/util/List;)Ljava/util/List;
                     move-result-object v$resultRegister
                 """.trimIndent(),
             )

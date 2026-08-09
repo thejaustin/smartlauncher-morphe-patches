@@ -55,9 +55,13 @@ private fun generatePatchList(version: String, patches: Set<Patch<*>>) {
 
     val jsonObject = JsonObject()
     jsonObject.addProperty("version", "v$version")
+    jsonObject.addProperty("downloadUrl", "https://github.com/thejaustin/smartlauncher-morphe-patches/releases/latest/download/smartlauncher-morphe-patches.mpp")
     jsonObject.add("patches", gson.toJsonTree(patchesMap))
 
-    File("../patches-list.json").writeText(gson.toJson(jsonObject))
+    val jsonString = gson.toJson(jsonObject)
+    File("../patches-bundle.json").writeText(jsonString)
+    File("../patches-list.json").writeText(jsonString)
+    File("../patches.json").writeText(jsonString)
 }
 
 @Suppress("unused")

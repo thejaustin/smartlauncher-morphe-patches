@@ -71,16 +71,24 @@ public class ArchivedAppFilter {
             return false;
         }
         try {
-            PackageManager.PackageInfoFlags flags = PackageManager.PackageInfoFlags.of(PackageManager.MATCH_ARCHIVED_PACKAGES);
-            return packageManager.getPackageInfo(appInfo.packageName, flags).getArchiveTimeMillis() != 0L;
-        } catch (PackageManager.NameNotFoundException e) {
-            return false;
+            // Signal 1: ApplicationInfo.FLAG_ARCHIVED (bit 30 = 0x40000000)
+            if ((appInfo.flags & 0x40000000) != 0) {
+                return true;
+            }
+            // Signal 2: Unlinked / zero-byte sourceDir APK file on archived app
+            if (appInfo.sourceDir == null || appInfo.sourceDir.isEmpty() || !new java.io.File(appInfo.sourceDir).exists()) {
+                return true;
+            }
+            // Signal 3: Reflection for PackageInfo.getArchiveTimeMillis() with MATCH_ARCHIVED_PACKAGES = 0x00200000
+            Object pkgInfo = packageManager.getPackageInfo(appInfo.packageName, 0x00200000);
+            if (pkgInfo != null) {
+                Method getArchiveTime = pkgInfo.getClass().getMethod("getArchiveTimeMillis");
+                Long time = (Long) getArchiveTime.invoke(pkgInfo);
+                return time != null && time != 0L;
+            }
         } catch (Throwable t) {
-            // Defensive: getArchiveTimeMillis() is gated behind the archiving
-            // feature flag and may not exist on every OEM build. Never let a
-            // launcher-critical call site crash the drawer over this.
             Log.w(TAG, "Could not determine archived state for " + appInfo.packageName, t);
-            return false;
         }
+        return false;
     }
 }

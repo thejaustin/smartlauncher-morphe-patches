@@ -1,0 +1,39 @@
+{
+  "version": "v1.0.5",
+  "downloadUrl": "https://github.com/thejaustin/smartlauncher-morphe-patches/releases/latest/download/smartlauncher-morphe-patches.mpp",
+  "patches": [
+    {
+      "name": "Hide archived apps",
+      "description": "Filters archived apps out of the app drawer, the add-to-home-screen picker, and the shortcut picker.",
+      "use": true,
+      "dependencies": [],
+      "compatiblePackages": {
+        "ginlemon.flowerfree": [
+          "6.6 build 002"
+        ]
+      }
+    },
+    {
+      "name": "Shizuku app archiving",
+      "description": "Adds a context menu item to archive apps via Shizuku (`pm archive`) in Smart Launcher 6.",
+      "use": false,
+      "dependencies": [],
+      "compatiblePackages": {
+        "ginlemon.flowerfree": [
+          "6.6 build 002"
+        ]
+      }
+    },
+    {
+      "name": "Native app archiving",
+      "description": "Enables system PackageInstaller/LauncherApps native archiving on supported devices (e.g. S22 Ultra with One UI / Android 15+).",
+      "use": false,
+      "dependencies": [],
+      "compatiblePackages": {
+        "ginlemon.flowerfree": [
+          "6.6 build 002"
+        ]
+      }
+    }
+  ]
+}
