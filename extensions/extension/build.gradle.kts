@@ -4,6 +4,9 @@ extension {
 
 android {
     namespace = "com.autocat.morphe.smartlauncher.extension"
+    defaultConfig {
+        minSdk = 24
+    }
 }
 
 dependencies {
