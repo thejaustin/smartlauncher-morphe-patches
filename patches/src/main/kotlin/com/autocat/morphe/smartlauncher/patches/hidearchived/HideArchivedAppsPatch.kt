@@ -1,7 +1,6 @@
 package com.autocat.morphe.smartlauncher.patches.hidearchived
 
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
-import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
@@ -32,15 +31,24 @@ val hideArchivedAppsPatch = bytecodePatch(
             val invokeIndex = match.instructionMatches.first().index
             val method = match.method
 
-            // The instruction immediately after the invoke is always
-            // move-result-object <reg> - verified against all 3 real call
-            // sites in Smart Launcher 6 v6.6 build 002 (app drawer, app
-            // picker, shortcut picker), each compiled as a distinct Kotlin
-            // coroutine continuation with its own register allocation.
-            val resultRegister = method.getInstruction<OneRegisterInstruction>(invokeIndex + 1).registerA
+            // Locate move-result-object instruction safely following invoke
+            var moveResultIndex = invokeIndex + 1
+            while (moveResultIndex < method.instructions.size) {
+                val insn = method.instructions[moveResultIndex]
+                if (insn.opcode.name == "move-result-object" && insn is OneRegisterInstruction) {
+                    break
+                }
+                moveResultIndex++
+            }
+
+            if (moveResultIndex >= method.instructions.size) {
+                throw PatchException("Could not locate move-result-object instruction after LauncherApps.getActivityList() call site")
+            }
+
+            val resultRegister = (method.instructions[moveResultIndex] as OneRegisterInstruction).registerA
 
             method.addInstructions(
-                invokeIndex + 2,
+                moveResultIndex + 1,
                 """
                     invoke-static/range {v$resultRegister .. v$resultRegister}, Lcom/autocat/morphe/smartlauncher/extension/ArchivedAppFilter;->filter(Ljava/util/List;)Ljava/util/List;
                     move-result-object v$resultRegister
