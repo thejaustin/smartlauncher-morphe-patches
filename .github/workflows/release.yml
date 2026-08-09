@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: write
+  packages: read
 
 jobs:
   build:
@@ -35,16 +36,10 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Morphe Patch Package (.mpp)
-        # The app.morphe.patches plugin and app.morphe:morphe-patcher dependency
-        # live in a GitHub Packages Maven registry owned by the MorpheApp org
-        # (https://maven.pkg.github.com/MorpheApp/registry). The default
-        # secrets.GITHUB_TOKEN is scoped to this repo/owner only and cannot
-        # read another org's package registry, so this needs a real PAT with
-        # read:packages added as the MORPHE_REGISTRY_TOKEN repo secret.
         run: ./gradlew buildAndroid
         env:
           GITHUB_ACTOR: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ secrets.MORPHE_REGISTRY_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.MORPHE_REGISTRY_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
