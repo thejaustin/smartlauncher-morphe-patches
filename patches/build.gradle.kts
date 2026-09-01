@@ -1,5 +1,5 @@
 group = "com.autocat.morphe.smartlauncher"
-version = "1.1.0"
+version = "1.2.0"
 
 base {
     archivesName.set("smartlauncher-morphe-patches")
@@ -33,13 +33,6 @@ dependencies {
 }
 
 tasks {
-    // Optional convenience: regenerates ../patches-list.json (a human-facing
-    // listing of patch names/descriptions for the repo README / Morphe's
-    // "Add Source" preview). Not required for Morphe to load or apply the
-    // .mpp - that happens purely via reflection over the built jar, see
-    // util/PatchListGenerator.kt. This repo doesn't use semantic-release,
-    // so unlike the official Morphe template this isn't wired to a
-    // "publish" task - run manually with `./gradlew :patches:generatePatchesList`.
     register<JavaExec>("generatePatchesList") {
         description = "Regenerate patches-list.json from the built patch bundle"
 
