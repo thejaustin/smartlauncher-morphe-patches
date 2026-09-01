@@ -4,7 +4,7 @@
 [![Download .mpp](https://img.shields.io/badge/Download-.mpp%20Package-10B981?style=for-the-badge&logo=android&logoColor=white)](https://github.com/thejaustin/smartlauncher-morphe-patches/releases/latest/download/smartlauncher-morphe-patches.mpp)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/thejaustin/smartlauncher-morphe-patches/release.yml?branch=main&style=for-the-badge&logo=github)](https://github.com/thejaustin/smartlauncher-morphe-patches/actions)
 
-Custom **Morphe Patch Package (`.mpp`)** suite for **Smart Launcher 6**, specially designed for devices like the **Samsung Galaxy S22 Ultra** (One UI / Android 14+ / Android 15+).
+Custom **Morphe Patch Package (`.mpp`)** suite for **Smart Launcher 6**, specially designed for devices like the **Samsung Galaxy S22 Ultra** (One UI / Android 14+ / Android 15+ / Android 16+).
 
 ---
 
@@ -30,16 +30,18 @@ Choose any of the options below directly on your Android device:
 
 ## 🌟 Included Patches
 
-### 1. 🙈 Hide archived apps (`hideArchivedAppsPatch`) - Enabled by default
+### 1. 🙈 Hide archived apps (`hideArchivedAppsPatch`) - Enabled
 - Filters archived apps (Android 15+ app archiving) out of the app drawer, the add-to-home-screen picker, and the shortcut picker.
 - **Zero-Allocation Fast Path**: Uses high-performance flag checks (`FLAG_ARCHIVED`) and unlinked APK file checks to ensure 120Hz smooth scrolling without GC micro-stutters.
 - Applying the patch is the toggle - there is no separate in-app setting required.
 
-### 2. ⚡ Shizuku app archiving (`shizukuArchivePatch`) - Disabled by default
-- Framework for context menu app archiving via Shizuku (`pm archive`).
+### 2. 📱 Native app archiving (`nativeArchivePatch`) - Enabled
+- Integrates system `PackageInstaller.requestArchive` / `LauncherApps.archiveApp` native archiving runtime on Android 15+ / Samsung One UI 7.
+- Automatically handles callback `IntentSender` dispatch and user notifications.
 
-### 3. 📱 Native app archiving (`nativeArchivePatch`) - Disabled by default
-- Framework for system `PackageInstaller.requestArchive` / `LauncherApps.archiveApp` native archiving on Android 15+ / Samsung One UI 7.
+### 3. ⚡ Shizuku app archiving (`shizukuArchivePatch`) - Enabled
+- Integrates Shizuku binder-level privileged execution (`IPackageManager` / shell) for app archiving on Android 14/15/16.
+- Executes asynchronously on a background thread pool to prevent UI thread ANR freezes.
 
 ---
 
