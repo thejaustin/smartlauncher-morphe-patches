@@ -5,12 +5,11 @@ import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
 import app.morphe.patcher.methodCall
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
-import app.morphe.patcher.string
 import com.autocat.morphe.smartlauncher.shared.Constants
 
 object SignatureCheckFingerprint : Fingerprint(
+    strings = listOf("Not genuine apk. This may not stop humans but may stop machines."),
     filters = listOf(
-        string("Not genuine apk. This may not stop humans but may stop machines."),
         methodCall(
             smali = "Ljava/lang/System;->exit(I)V",
         ),
@@ -34,10 +33,7 @@ val bypassSignatureCheckPatch = bytecodePatch(
         val match = SignatureCheckFingerprint.matchOrNull()
             ?: throw PatchException("Could not find Smart Launcher signature verification call site")
 
-        val method = match.method
-        match.instructionMatches.forEach { insnMatch ->
-            val idx = insnMatch.index
-            method.replaceInstruction(idx, "nop")
-        }
+        val exitInsnIndex = match.instructionMatches.first().index
+        match.method.replaceInstruction(exitInsnIndex, "nop")
     }
 }
