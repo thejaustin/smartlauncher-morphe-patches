@@ -1,11 +1,9 @@
 package com.autocat.morphe.smartlauncher.patches.contextmenu
 
 import app.morphe.patcher.Fingerprint
-import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
 import app.morphe.patcher.methodCall
-import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
 import com.autocat.morphe.smartlauncher.shared.Constants
@@ -47,7 +45,12 @@ val morpheContextualActionPatch = bytecodePatch(
     compatibleWith(Constants.COMPATIBILITY)
 
     execute {
-        // 1. Inject dedicated Archive item into popup menu list
+        // 1. Inject dedicated Archive item into popup menu list.
+        // IMPORTANT: replaceInstruction preserves the method's bytecode size and does not
+        // shift any jump offsets or try-catch handler addresses. addInstruction would corrupt
+        // the coroutine state-machine switch table and cause ART class-verification failure
+        // (instant crash at startup). The replacement calls injectAndShow(), which injects
+        // the archive item and then drives the original popup-show call via reflection.
         PopupListFingerprint.matchOrNull()?.let { match ->
             val method = match.method
             val showInsnIndex = match.instructionMatches.first().index
@@ -55,9 +58,9 @@ val morpheContextualActionPatch = bytecodePatch(
             val regPopup = insn.registerC
             val regList = insn.registerD
 
-            method.addInstruction(
+            method.replaceInstruction(
                 showInsnIndex,
-                "invoke-static {v$regPopup, v$regList, p0}, Lcom/autocat/morphe/smartlauncher/extension/MorpheMenuInjector;->injectArchiveItem(Ljava/lang/Object;Ljava/util/List;Ljava/lang/Object;)V",
+                "invoke-static {v$regPopup, v$regList, p0}, Lcom/autocat/morphe/smartlauncher/extension/MorpheMenuInjector;->injectAndShow(Ljava/lang/Object;Ljava/util/List;Ljava/lang/Object;)V",
             )
         }
 

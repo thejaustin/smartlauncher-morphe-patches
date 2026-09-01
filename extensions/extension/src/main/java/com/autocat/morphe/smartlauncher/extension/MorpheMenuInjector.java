@@ -28,7 +28,48 @@ public final class MorpheMenuInjector {
     private static String sLastPackageName = null;
     private static Context sLastContext = null;
 
+    private static Method sPopupShowMethod = null;
+
     private MorpheMenuInjector() {}
+
+    /**
+     * Drop-in replacement for the original rj.d(List)V call in the popup coroutine method.
+     *
+     * The patch uses replaceInstruction (not addInstruction) so the method's bytecode size
+     * stays identical and no jump offsets are shifted. This prevents the ART class-verification
+     * failure that caused an instant crash at startup when addInstruction was used.
+     *
+     * After injecting the archive item, this method calls the original rj.d(List)V via
+     * reflection so the popup still shows normally.
+     */
+    @SuppressWarnings("rawtypes")
+    public static void injectAndShow(Object popupLayerObj, List items, Object callerObj) {
+        injectArchiveItem(popupLayerObj, items, callerObj);
+
+        if (popupLayerObj == null) return;
+        try {
+            if (sPopupShowMethod == null) {
+                for (Method m : popupLayerObj.getClass().getDeclaredMethods()) {
+                    Class<?>[] params = m.getParameterTypes();
+                    if (params.length == 1
+                            && List.class.isAssignableFrom(params[0])
+                            && m.getReturnType() == void.class
+                            && m.getName().length() <= 2) {
+                        m.setAccessible(true);
+                        sPopupShowMethod = m;
+                        break;
+                    }
+                }
+            }
+            if (sPopupShowMethod != null) {
+                sPopupShowMethod.invoke(popupLayerObj, items);
+            } else {
+                Log.w(TAG, "injectAndShow: could not locate popup show method");
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "injectAndShow: reflection call failed: " + t.getMessage());
+        }
+    }
 
     /**
      * Injects a dedicated "Archive App" or "Restore App" item into Smart Launcher's contextual popup menu list.
@@ -124,11 +165,31 @@ public final class MorpheMenuInjector {
             final boolean isArchived = (appInfo.flags & 0x40000000) != 0;
             final String actionTitle = isArchived ? "♻️ Restore / Unarchive" : "📦 Archive App";
 
-            // 4. Create a proxy onClick handler for Kotlin Function1 (b34)
-            Class<?> function1Class = Class.forName("b34");
+            // 4. Resolve the Kotlin Function1 interface class (obfuscated as e.g. "b34").
+            // Prefer the runtime type of the existing action field so we stay correct
+            // across obfuscation renames. Fall back to Class.forName only if needed.
+            Class<?> function1Class = null;
+            if (actionField != null) {
+                function1Class = actionField.getType();
+                if (!function1Class.isInterface()) {
+                    function1Class = null;
+                }
+            }
+            if (function1Class == null) {
+                try {
+                    Class<?> candidate = Class.forName("b34");
+                    if (candidate.isInterface()) function1Class = candidate;
+                } catch (ClassNotFoundException ignored) {}
+            }
+            if (function1Class == null) {
+                Log.w(TAG, "injectArchiveItem: could not resolve Function1 interface; skipping inject");
+                return;
+            }
+
+            final Class<?> resolvedFn1 = function1Class;
             Object clickProxy = Proxy.newProxyInstance(
                     q36Class.getClassLoader(),
-                    new Class<?>[]{function1Class},
+                    new Class<?>[]{resolvedFn1},
                     new InvocationHandler() {
                         @Override
                         public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {

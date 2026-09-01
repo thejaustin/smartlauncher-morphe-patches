@@ -51,6 +51,7 @@ public final class MorpheSettingsDialog {
                 @Override
                 public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                     MorphePreferences.setHideArchivedEnabled(context, isChecked);
+                    ArchivedAppFilter.setFilterEnabled(isChecked);
                 }
             });
             layout.addView(cbHide);

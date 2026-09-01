@@ -1,5 +1,6 @@
 package com.autocat.morphe.smartlauncher.extension;
 
+import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.LauncherActivityInfo;
 import android.content.pm.LauncherApps;
@@ -7,6 +8,7 @@ import android.os.Build;
 import android.os.UserHandle;
 import android.util.Log;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -25,6 +27,34 @@ public class ArchivedAppFilter {
     private static final String TAG = "ArchivedAppFilter";
     private static final int FLAG_ARCHIVED = 0x40000000; // Bit 30 in ApplicationInfo.flags (1 << 30)
 
+    private static volatile boolean sFilterEnabled = true;
+    private static volatile boolean sPrefsLoaded = false;
+
+    /** Called by MorpheSettingsDialog when the user toggles the setting at runtime. */
+    public static void setFilterEnabled(boolean enabled) {
+        sFilterEnabled = enabled;
+        sPrefsLoaded = true;
+    }
+
+    private static void loadPrefsIfNeeded(LauncherApps launcherApps) {
+        if (sPrefsLoaded) return;
+        try {
+            Context ctx = null;
+            for (Field f : launcherApps.getClass().getDeclaredFields()) {
+                f.setAccessible(true);
+                Object val = f.get(launcherApps);
+                if (val instanceof Context) {
+                    ctx = (Context) val;
+                    break;
+                }
+            }
+            if (ctx != null) {
+                sFilterEnabled = MorphePreferences.isHideArchivedEnabled(ctx);
+                sPrefsLoaded = true;
+            }
+        } catch (Throwable ignored) {}
+    }
+
     /**
      * 1-to-1 drop-in replacement for {@code LauncherApps.getActivityList(String, UserHandle)}.
      */
@@ -37,9 +67,10 @@ public class ArchivedAppFilter {
             if (launcherApps == null) {
                 return Collections.emptyList();
             }
+            loadPrefsIfNeeded(launcherApps);
             List<LauncherActivityInfo> activities = launcherApps.getActivityList(packageName, user);
 
-            // CRITICAL FIX: Only filter archived apps when querying the full application list
+            // Only filter archived apps when querying the full application list
             // (packageName == null or empty). When Smart Launcher queries a specific package
             // (packageName != null), return the list directly so home screen icon restoration
             // calling list.first() / list[0] never throws IndexOutOfBoundsException.
@@ -58,10 +89,13 @@ public class ArchivedAppFilter {
     }
 
     /**
-     * Filters archived applications safely.
+     * Filters archived applications safely. Respects the user preference toggle.
      */
     public static List<LauncherActivityInfo> filter(List<LauncherActivityInfo> activities) {
         try {
+            if (!sFilterEnabled) {
+                return activities;
+            }
             if (activities == null || activities.isEmpty()) {
                 return activities;
             }
