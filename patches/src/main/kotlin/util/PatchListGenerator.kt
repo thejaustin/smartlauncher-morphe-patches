@@ -9,13 +9,8 @@ import java.net.URLClassLoader
 import java.util.jar.Manifest
 
 /**
- * Regenerates ../../patches-list.json from the built .mpp - a human-facing
- * listing of patch names/descriptions for the repo README and Morphe's
- * "Add Source" preview. This has nothing to do with whether Morphe can load
- * or apply the patches: that happens purely by reflecting over the built
- * jar for Patch<*> instances at patch time (loadPatchesFromJar, same as
- * used below). Run manually with `./gradlew :patches:generatePatchesList`
- * after a build; this repo does not wire it into an automated release step.
+ * Regenerates ../patches-list.json and ../patches-bundle.json from the built .mpp.
+ * Matches official Morphe Manager source schema requirements.
  */
 internal fun main() {
     val patchFile = File("build/libs/").listFiles { file ->
@@ -37,13 +32,23 @@ internal fun main() {
 
 @Suppress("DEPRECATION")
 private fun generatePatchList(version: String, patches: Set<Patch<*>>) {
-    val patchesMap = patches.sortedBy { it.name }.map {
+    val patchesMap = patches.sortedBy { it.name }.map { patch ->
+        val compatList = patch.compatiblePackages?.map { (pkgName, versions) ->
+            JsonCompatiblePackage(
+                packageName = pkgName,
+                name = "Smart Launcher 6",
+                versions = versions?.toList(),
+                targets = versions?.map { JsonTarget(version = it) }
+            )
+        }
+
         JsonPatch(
-            it.name!!,
-            it.description,
-            it.use,
-            it.dependencies.map { dependency -> dependency.javaClass.simpleName },
-            it.compatiblePackages?.associate { (packageName, versions) -> packageName to versions },
+            name = patch.name,
+            description = patch.description,
+            default = patch.use,
+            use = patch.use,
+            dependencies = patch.dependencies.map { it.javaClass.simpleName },
+            compatiblePackages = compatList
         )
     }
 
@@ -54,7 +59,7 @@ private fun generatePatchList(version: String, patches: Set<Patch<*>>) {
         .create()
 
     val jsonObject = JsonObject()
-    jsonObject.addProperty("version", "v$version")
+    jsonObject.addProperty("version", version)
     jsonObject.addProperty("downloadUrl", "https://github.com/thejaustin/smartlauncher-morphe-patches/releases/latest/download/smartlauncher-morphe-patches.mpp")
     jsonObject.add("patches", gson.toJsonTree(patchesMap))
 
@@ -68,7 +73,23 @@ private fun generatePatchList(version: String, patches: Set<Patch<*>>) {
 private class JsonPatch(
     val name: String? = null,
     val description: String? = null,
+    val default: Boolean = true,
     val use: Boolean = true,
-    val dependencies: List<String>,
-    val compatiblePackages: Map<String, Set<String>?>? = null,
+    val dependencies: List<String> = emptyList(),
+    val compatiblePackages: List<JsonCompatiblePackage>? = null,
+)
+
+@Suppress("unused")
+private class JsonCompatiblePackage(
+    val packageName: String,
+    val name: String? = null,
+    val versions: List<String>? = null,
+    val targets: List<JsonTarget>? = null,
+)
+
+@Suppress("unused")
+private class JsonTarget(
+    val version: String,
+    val isExperimental: Boolean = true,
+    val minSdk: Int = 24,
 )

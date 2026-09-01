@@ -36,7 +36,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Morphe Patch Package (.mpp)
-        run: ./gradlew buildAndroid
+        run: ./gradlew buildAndroid :patches:generatePatchesList
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.MORPHE_REGISTRY_TOKEN || secrets.GITHUB_TOKEN }}
@@ -45,13 +45,21 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: smartlauncher-morphe-patches
-          path: patches/build/libs/*.mpp
+          path: |
+            patches/build/libs/*.mpp
+            patches-bundle.json
+            patches-list.json
+            patches.json
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: patches/build/libs/*.mpp
+          files: |
+            patches/build/libs/*.mpp
+            patches-bundle.json
+            patches-list.json
+            patches.json
           name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
