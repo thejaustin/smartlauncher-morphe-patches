@@ -1,6 +1,6 @@
 {
   "NOTE": "Do NOT manually edit this file. This file is automatically updated when semantic release (release.yml) runs. Manually editing this file can break your releases and break third party tools that use this file.",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "patches": [
     {
       "name": "Bypass signature check",
@@ -32,6 +32,58 @@
       "name": "Hide archived apps",
       "description": "Filters archived apps out of the app drawer.",
       "default": true,
+      "dependencies": [],
+      "compatiblePackages": [
+        {
+          "packageName": "ginlemon.flowerfree",
+          "name": "Smart Launcher 6",
+          "description": null,
+          "apkFileType": "APK_REQUIRED",
+          "appIconColor": "#3B82F6",
+          "signatures": [],
+          "targets": [
+            {
+              "version": "6.6 build 017",
+              "versionCodes": null,
+              "isExperimental": true,
+              "minSdk": 24,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Morphe settings UI integration",
+      "description": "Integrates the Morphe Patches & App Archiving settings panel into Smart Launcher Settings (under Dev options).",
+      "default": true,
+      "dependencies": [],
+      "compatiblePackages": [
+        {
+          "packageName": "ginlemon.flowerfree",
+          "name": "Smart Launcher 6",
+          "description": null,
+          "apkFileType": "APK_REQUIRED",
+          "appIconColor": "#3B82F6",
+          "signatures": [],
+          "targets": [
+            {
+              "version": "6.6 build 017",
+              "versionCodes": null,
+              "isExperimental": true,
+              "minSdk": 24,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Contextual app menu actions",
+      "description": "Enables one-tap app archiving and restoring when holding down an app in the drawer or categories.",
+      "default": false,
       "dependencies": [],
       "compatiblePackages": [
         {

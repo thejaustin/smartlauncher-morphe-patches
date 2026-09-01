@@ -1,5 +1,6 @@
 package com.autocat.morphe.smartlauncher.extension;
 
+import android.app.Activity;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
@@ -14,8 +15,8 @@ import android.widget.Toast;
 import java.lang.reflect.Method;
 
 /**
- * Real, verified implementation of native (no-root) app archiving via the
- * public {@code PackageInstaller.requestArchive(String, IntentSender)} API
+ * Real implementation of native app archiving and unarchiving via the
+ * public {@code PackageInstaller.requestArchive} & {@code PackageInstaller.requestUnarchive} APIs
  * (Android 15 / API 35+ / Samsung One UI 7).
  */
 @SuppressWarnings("unused")
@@ -29,9 +30,55 @@ public class NativeArchiveHelper {
         return Build.VERSION.SDK_INT >= 35;
     }
 
-    /**
-     * Primary entry point for archiving an app using system native APIs.
-     */
+    public static boolean archivePackage(Context context, String packageName) {
+        return requestArchive(context, packageName);
+    }
+
+    public static boolean unarchivePackage(Context context, String packageName) {
+        if (context == null || packageName == null || packageName.isEmpty()) {
+            return false;
+        }
+        if (!isSupported()) {
+            safeToast(context, "Native app unarchiving requires Android 15+");
+            return false;
+        }
+
+        IntentSender statusReceiver = createCallbackIntentSender(context, packageName);
+
+        try {
+            PackageInstaller installer = context.getPackageManager().getPackageInstaller();
+            if (installer != null) {
+                Method unarchiveMethod = installer.getClass().getMethod("requestUnarchive", String.class, IntentSender.class);
+                unarchiveMethod.invoke(installer, packageName, statusReceiver);
+                Log.i(TAG, "Native unarchive requested for " + packageName);
+                safeToast(context, "Unarchiving " + packageName + "...");
+                return true;
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "PackageInstaller.requestUnarchive failed for " + packageName, t);
+        }
+
+        try {
+            LauncherApps launcherApps = (LauncherApps) context.getSystemService(Context.LAUNCHER_APPS_SERVICE);
+            if (launcherApps != null) {
+                Method unarchiveAppMethod = launcherApps.getClass().getMethod(
+                    "unarchiveApp",
+                    String.class,
+                    Process.myUserHandle().getClass(),
+                    IntentSender.class
+                );
+                unarchiveAppMethod.invoke(launcherApps, packageName, Process.myUserHandle(), statusReceiver);
+                Log.i(TAG, "LauncherApps.unarchiveApp invoked for " + packageName);
+                safeToast(context, "Unarchiving " + packageName + "...");
+                return true;
+            }
+        } catch (Throwable t) {
+            Log.e(TAG, "LauncherApps.unarchiveApp failed for " + packageName, t);
+        }
+
+        return false;
+    }
+
     public static boolean requestArchive(Context context, String packageName) {
         if (context == null || packageName == null || packageName.isEmpty()) {
             return false;
@@ -43,7 +90,6 @@ public class NativeArchiveHelper {
 
         IntentSender statusReceiver = createCallbackIntentSender(context, packageName);
 
-        // Attempt 1: Standard PackageInstaller.requestArchive (API 35+)
         try {
             PackageInstaller installer = context.getPackageManager().getPackageInstaller();
             if (installer != null) {
@@ -53,10 +99,9 @@ public class NativeArchiveHelper {
                 return true;
             }
         } catch (Throwable t) {
-            Log.w(TAG, "PackageInstaller.requestArchive failed for " + packageName + ", trying LauncherApps fallback", t);
+            Log.w(TAG, "PackageInstaller.requestArchive failed for " + packageName, t);
         }
 
-        // Attempt 2: LauncherApps.archiveApp fallback
         try {
             LauncherApps launcherApps = (LauncherApps) context.getSystemService(Context.LAUNCHER_APPS_SERVICE);
             if (launcherApps != null) {
@@ -77,18 +122,6 @@ public class NativeArchiveHelper {
 
         safeToast(context, "Failed to archive " + packageName);
         return false;
-    }
-
-    public static void requestArchive(Context context, String packageName, PendingIntent statusReceiver) {
-        if (!isSupported() || context == null || statusReceiver == null) {
-            return;
-        }
-        try {
-            PackageInstaller installer = context.getPackageManager().getPackageInstaller();
-            installer.requestArchive(packageName, statusReceiver.getIntentSender());
-        } catch (Throwable t) {
-            Log.e(TAG, "Failed to request native archive for " + packageName, t);
-        }
     }
 
     private static IntentSender createCallbackIntentSender(Context context, String packageName) {
