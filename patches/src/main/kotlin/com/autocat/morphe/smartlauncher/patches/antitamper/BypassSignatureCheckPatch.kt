@@ -1,18 +1,19 @@
 package com.autocat.morphe.smartlauncher.patches.antitamper
 
+import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
-import app.morphe.patcher.fingerprint.MethodFingerprint
+import app.morphe.patcher.methodCall
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
+import app.morphe.patcher.string
 import com.autocat.morphe.smartlauncher.shared.Constants
 
-object SignatureCheckFingerprint : MethodFingerprint(
-    strings = listOf(
-        "SLTool",
-        "Not genuine apk. This may not stop humans but may stop machines.",
-    ),
+object SignatureCheckFingerprint : Fingerprint(
     filters = listOf(
-        methodCall(smali = "Ljava/lang/System;->exit(I)V"),
+        string("Not genuine apk. This may not stop humans but may stop machines."),
+        methodCall(
+            smali = "Ljava/lang/System;->exit(I)V",
+        ),
     ),
 )
 
@@ -33,7 +34,10 @@ val bypassSignatureCheckPatch = bytecodePatch(
         val match = SignatureCheckFingerprint.matchOrNull()
             ?: throw PatchException("Could not find Smart Launcher signature verification call site")
 
-        val exitInsnIndex = match.instructionMatches.first().index
-        match.method.replaceInstruction(exitInsnIndex, "nop")
+        val method = match.method
+        match.instructionMatches.forEach { insnMatch ->
+            val idx = insnMatch.index
+            method.replaceInstruction(idx, "nop")
+        }
     }
 }
