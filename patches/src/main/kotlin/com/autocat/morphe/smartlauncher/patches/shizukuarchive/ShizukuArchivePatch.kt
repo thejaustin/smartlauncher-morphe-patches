@@ -11,7 +11,7 @@ import com.autocat.morphe.smartlauncher.shared.Constants
 val shizukuArchivePatch = bytecodePatch(
     name = "Shizuku app archiving",
     description = "Enables Shizuku binder-level privileged app archiving execution in Smart Launcher 6.",
-    default = true,
+    default = false,
 ) {
     compatibleWith(Constants.COMPATIBILITY)
 

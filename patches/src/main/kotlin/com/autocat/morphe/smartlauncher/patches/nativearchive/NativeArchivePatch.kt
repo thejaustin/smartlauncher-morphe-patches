@@ -11,7 +11,7 @@ import com.autocat.morphe.smartlauncher.shared.Constants
 val nativeArchivePatch = bytecodePatch(
     name = "Native app archiving",
     description = "Enables system PackageInstaller/LauncherApps native archiving runtime on Android 15+ / One UI 7.",
-    default = true,
+    default = false,
 ) {
     compatibleWith(Constants.COMPATIBILITY)
 

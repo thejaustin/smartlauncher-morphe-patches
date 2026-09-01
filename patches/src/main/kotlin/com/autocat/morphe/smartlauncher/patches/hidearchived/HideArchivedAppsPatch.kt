@@ -12,15 +12,12 @@ import com.autocat.morphe.smartlauncher.shared.Constants
  * Smart Launcher builds, by wrapping the result of every
  * `LauncherApps.getActivityList()` call site with
  * [com.autocat.morphe.smartlauncher.extension.ArchivedAppFilter.filter].
- *
- * Applying the patch is the toggle - there is no in-app setting, to avoid
- * also having to inject a new row into Smart Launcher's (Compose-based)
- * settings screen for a single boolean.
  */
 @Suppress("unused")
 val hideArchivedAppsPatch = bytecodePatch(
     name = "Hide archived apps",
     description = "Filters archived apps out of the app drawer, the add-to-home-screen picker, and the shortcut picker.",
+    default = true,
 ) {
     compatibleWith(Constants.COMPATIBILITY)
 
@@ -29,19 +26,22 @@ val hideArchivedAppsPatch = bytecodePatch(
             ?: throw PatchException("Could not find any LauncherApps.getActivityList() call sites")
 
         matches.forEach { match ->
-            val invokeIndex = match.instructionMatches.first().index
             val method = match.method
+            // Process match instruction occurrences in reverse order to preserve preceding instruction offsets
+            match.instructionMatches.reversed().forEach { insnMatch ->
+                val invokeIndex = insnMatch.index
 
-            // The instruction immediately after the invoke is move-result-object <reg>
-            val resultRegister = method.getInstruction<OneRegisterInstruction>(invokeIndex + 1).registerA
+                // The instruction immediately after the invoke is move-result-object <reg>
+                val resultRegister = method.getInstruction<OneRegisterInstruction>(invokeIndex + 1).registerA
 
-            method.addInstructions(
-                invokeIndex + 2,
-                """
-                    invoke-static/range {v$resultRegister .. v$resultRegister}, Lcom/autocat/morphe/smartlauncher/extension/ArchivedAppFilter;->filter(Ljava/util/List;)Ljava/util/List;
-                    move-result-object v$resultRegister
-                """.trimIndent(),
-            )
+                method.addInstructions(
+                    invokeIndex + 2,
+                    """
+                        invoke-static/range {v$resultRegister .. v$resultRegister}, Lcom/autocat/morphe/smartlauncher/extension/ArchivedAppFilter;->filter(Ljava/util/List;)Ljava/util/List;
+                        move-result-object v$resultRegister
+                    """.trimIndent(),
+                )
+            }
         }
     }
 }
