@@ -1,5 +1,6 @@
 package com.autocat.morphe.smartlauncher.patches.hidearchived
 
+import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
@@ -31,21 +32,17 @@ val hideArchivedAppsPatch = bytecodePatch(
             val method = match.method
             match.instructionMatches.forEach { insnMatch ->
                 val invokeIndex = insnMatch.index
-                val insn = method.instructions[invokeIndex]
-
-                val smali = when (insn) {
-                    is FiveRegisterInstruction -> {
-                        val regA = insn.registerC
-                        val regB = insn.registerD
-                        val regC = insn.registerE
-                        "invoke-static {v$regA, v$regB, v$regC}, Lcom/autocat/morphe/smartlauncher/extension/ArchivedAppFilter;->getActivityList(Landroid/content/pm/LauncherApps;Ljava/lang/String;Landroid/os/UserHandle;)Ljava/util/List;"
-                    }
-                    is RegisterRangeInstruction -> {
-                        val start = insn.startRegister
-                        val end = start + insn.registerCount - 1
-                        "invoke-static/range {v$start .. v$end}, Lcom/autocat/morphe/smartlauncher/extension/ArchivedAppFilter;->getActivityList(Landroid/content/pm/LauncherApps;Ljava/lang/String;Landroid/os/UserHandle;)Ljava/util/List;"
-                    }
-                    else -> throw PatchException("Unexpected instruction type for getActivityList: ${insn.javaClass.name}")
+                val smali = try {
+                    val insn = method.getInstruction<FiveRegisterInstruction>(invokeIndex)
+                    val regA = insn.registerC
+                    val regB = insn.registerD
+                    val regC = insn.registerE
+                    "invoke-static {v$regA, v$regB, v$regC}, Lcom/autocat/morphe/smartlauncher/extension/ArchivedAppFilter;->getActivityList(Landroid/content/pm/LauncherApps;Ljava/lang/String;Landroid/os/UserHandle;)Ljava/util/List;"
+                } catch (t: Throwable) {
+                    val insn = method.getInstruction<RegisterRangeInstruction>(invokeIndex)
+                    val start = insn.startRegister
+                    val end = start + insn.registerCount - 1
+                    "invoke-static/range {v$start .. v$end}, Lcom/autocat/morphe/smartlauncher/extension/ArchivedAppFilter;->getActivityList(Landroid/content/pm/LauncherApps;Ljava/lang/String;Landroid/os/UserHandle;)Ljava/util/List;"
                 }
 
                 method.replaceInstruction(invokeIndex, smali)
