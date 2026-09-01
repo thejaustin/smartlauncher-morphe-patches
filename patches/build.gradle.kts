@@ -1,5 +1,5 @@
 group = "com.autocat.morphe.smartlauncher"
-version = "1.2.1"
+version = "1.3.0"
 
 base {
     archivesName.set("smartlauncher-morphe-patches")
@@ -8,7 +8,7 @@ base {
 patches {
     about {
         name = "Smart Launcher 6 Morphe Patches"
-        description = "Custom patches for Smart Launcher 6, focused on app-archiving support."
+        description = "Custom patches for Smart Launcher 6 (Anti-Tamper Signature Bypass, App Archiving, Privileged Shizuku Integration)."
         source = "git@github.com:thejaustin/smartlauncher-morphe-patches.git"
         author = "thejaustin"
         contact = "na"

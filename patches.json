@@ -1,7 +1,47 @@
 {
   "NOTE": "Do NOT manually edit this file. This file is automatically updated when semantic release (release.yml) runs. Manually editing this file can break your releases and break third party tools that use this file.",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "patches": [
+    {
+      "name": "Bypass signature check",
+      "description": "Neutralizes Smart Launcher's internal anti-tamper signature verification to prevent instant shutdown on launch.",
+      "default": true,
+      "dependencies": [],
+      "compatiblePackages": [
+        {
+          "packageName": "ginlemon.flowerfree",
+          "name": "Smart Launcher 6",
+          "description": null,
+          "apkFileType": "APK_REQUIRED",
+          "appIconColor": "#3B82F6",
+          "signatures": [],
+          "targets": [
+            {
+              "version": "6.6 build 017",
+              "versionCodes": null,
+              "isExperimental": true,
+              "minSdk": 24,
+              "description": null
+            },
+            {
+              "version": "6.6 build 016",
+              "versionCodes": null,
+              "isExperimental": true,
+              "minSdk": 24,
+              "description": null
+            },
+            {
+              "version": "6.6 build 002",
+              "versionCodes": null,
+              "isExperimental": true,
+              "minSdk": 24,
+              "description": null
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
     {
       "name": "Hide archived apps",
       "description": "Filters archived apps out of the app drawer, the add-to-home-screen picker, and the shortcut picker.",
