@@ -1,5 +1,5 @@
 group = "com.autocat.morphe.smartlauncher"
-version = "1.2.0"
+version = "1.2.1"
 
 base {
     archivesName.set("smartlauncher-morphe-patches")
@@ -30,6 +30,7 @@ val patchListGeneratorClasspath: Configuration by configurations.creating
 dependencies {
     compileOnly(libs.gson)
     patchListGeneratorClasspath(libs.gson)
+    implementation(project(":extensions:extension"))
 }
 
 tasks {
