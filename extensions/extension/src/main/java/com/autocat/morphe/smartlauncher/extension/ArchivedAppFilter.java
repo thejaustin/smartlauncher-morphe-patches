@@ -1,37 +1,54 @@
 package com.autocat.morphe.smartlauncher.extension;
 
-import android.app.Application;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.LauncherActivityInfo;
-import android.content.pm.PackageManager;
+import android.content.pm.LauncherApps;
 import android.os.Build;
+import android.os.UserHandle;
 import android.util.Log;
 
-import java.io.File;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
- * Bulletproof, crash-resilient runtime filter for Smart Launcher 6 app archiving.
+ * High-performance, crash-resilient runtime wrapper for Smart Launcher 6 app archiving.
  * <p>
- * Guarantee: This filter will NEVER throw any exception to Smart Launcher.
- * If any error, unexpected data structure, or runtime exception occurs, it
- * immediately falls back to returning the original activities list safely.
+ * Directly replaces {@code LauncherApps.getActivityList(...)} call sites in-place,
+ * filtering out archived packages before Smart Launcher's coroutines process them.
  */
 @SuppressWarnings("unused")
 public class ArchivedAppFilter {
 
     private static final String TAG = "ArchivedAppFilter";
     private static final int FLAG_ARCHIVED = 0x40000000; // Bit 30 in ApplicationInfo.flags
-    private static final int MATCH_ARCHIVED_PACKAGES = 0x00200000;
-
-    private static Method currentApplicationMethod;
-    private static Method getArchiveTimeMethod;
-    private static volatile boolean reflectionInitialized = false;
 
     /**
-     * Primary entry point called from bytecode hooks.
+     * 1-to-1 drop-in replacement for {@code LauncherApps.getActivityList(String, UserHandle)}.
+     */
+    public static List<LauncherActivityInfo> getActivityList(
+            LauncherApps launcherApps,
+            String packageName,
+            UserHandle user
+    ) {
+        try {
+            if (launcherApps == null) {
+                return Collections.emptyList();
+            }
+            List<LauncherActivityInfo> activities = launcherApps.getActivityList(packageName, user);
+            return filter(activities);
+        } catch (Throwable t) {
+            Log.e(TAG, "Safe fallback in getActivityList wrapper", t);
+            try {
+                return launcherApps != null ? launcherApps.getActivityList(packageName, user) : Collections.<LauncherActivityInfo>emptyList();
+            } catch (Throwable fallbackError) {
+                return Collections.emptyList();
+            }
+        }
+    }
+
+    /**
+     * Filters archived applications safely.
      */
     public static List<LauncherActivityInfo> filter(List<LauncherActivityInfo> activities) {
         try {
@@ -39,7 +56,7 @@ public class ArchivedAppFilter {
                 return activities;
             }
 
-            // Android 15+ archiving is only active on API 35+
+            // Android 15+ app archiving is active on API 35+
             if (Build.VERSION.SDK_INT < 35) {
                 return activities;
             }
@@ -54,7 +71,7 @@ public class ArchivedAppFilter {
                 }
             }
 
-            // If no apps are archived, return the original list with 0 allocations
+            // If no apps are archived, return the original list (0 allocations)
             if (archivedCount == 0) {
                 return activities;
             }
@@ -69,7 +86,6 @@ public class ArchivedAppFilter {
             }
             return filtered;
         } catch (Throwable t) {
-            // Absolute fail-safe: Never crash Smart Launcher!
             Log.e(TAG, "Safe filter catch: preserving original activity list", t);
             return activities;
         }

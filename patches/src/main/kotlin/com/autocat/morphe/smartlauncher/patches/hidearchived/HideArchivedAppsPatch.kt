@@ -1,17 +1,19 @@
 package com.autocat.morphe.smartlauncher.patches.hidearchived
 
-import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
-import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
+import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
-import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
+import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
+import com.android.tools.smali.dexlib2.iface.instruction.RegisterRangeInstruction
 import com.autocat.morphe.smartlauncher.shared.Constants
 
 /**
  * Filters archived apps (Android 15+ app archiving) out of every app list
- * Smart Launcher builds, by wrapping the result of every
- * `LauncherApps.getActivityList()` call site with
- * [com.autocat.morphe.smartlauncher.extension.ArchivedAppFilter.filter].
+ * Smart Launcher builds, by replacing `LauncherApps.getActivityList()` call sites
+ * in-place with `ArchivedAppFilter.getActivityList()`.
+ *
+ * In-place 1-to-1 instruction replacement preserves exact bytecode instruction offsets,
+ * try-catch boundaries, and coroutine jump targets.
  */
 @Suppress("unused")
 val hideArchivedAppsPatch = bytecodePatch(
@@ -27,20 +29,26 @@ val hideArchivedAppsPatch = bytecodePatch(
 
         matches.forEach { match ->
             val method = match.method
-            // Process match instruction occurrences in reverse order to preserve preceding instruction offsets
-            match.instructionMatches.reversed().forEach { insnMatch ->
+            match.instructionMatches.forEach { insnMatch ->
                 val invokeIndex = insnMatch.index
+                val insn = method.instructions[invokeIndex]
 
-                // The instruction immediately after the invoke is move-result-object <reg>
-                val resultRegister = method.getInstruction<OneRegisterInstruction>(invokeIndex + 1).registerA
+                val smali = when (insn) {
+                    is FiveRegisterInstruction -> {
+                        val regA = insn.registerC
+                        val regB = insn.registerD
+                        val regC = insn.registerE
+                        "invoke-static {v$regA, v$regB, v$regC}, Lcom/autocat/morphe/smartlauncher/extension/ArchivedAppFilter;->getActivityList(Landroid/content/pm/LauncherApps;Ljava/lang/String;Landroid/os/UserHandle;)Ljava/util/List;"
+                    }
+                    is RegisterRangeInstruction -> {
+                        val start = insn.startRegister
+                        val end = start + insn.registerCount - 1
+                        "invoke-static/range {v$start .. v$end}, Lcom/autocat/morphe/smartlauncher/extension/ArchivedAppFilter;->getActivityList(Landroid/content/pm/LauncherApps;Ljava/lang/String;Landroid/os/UserHandle;)Ljava/util/List;"
+                    }
+                    else -> throw PatchException("Unexpected instruction type for getActivityList: ${insn.javaClass.name}")
+                }
 
-                method.addInstructions(
-                    invokeIndex + 2,
-                    """
-                        invoke-static/range {v$resultRegister .. v$resultRegister}, Lcom/autocat/morphe/smartlauncher/extension/ArchivedAppFilter;->filter(Ljava/util/List;)Ljava/util/List;
-                        move-result-object v$resultRegister
-                    """.trimIndent(),
-                )
+                method.replaceInstruction(invokeIndex, smali)
             }
         }
     }
