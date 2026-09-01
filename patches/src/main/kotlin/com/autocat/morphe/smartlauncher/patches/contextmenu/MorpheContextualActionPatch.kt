@@ -1,6 +1,7 @@
 package com.autocat.morphe.smartlauncher.patches.contextmenu
 
 import app.morphe.patcher.Fingerprint
+import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
 import app.morphe.patcher.methodCall
@@ -8,6 +9,18 @@ import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
 import com.autocat.morphe.smartlauncher.shared.Constants
+
+object PopupListFingerprint : Fingerprint(
+    strings = listOf(
+        "contextualMenuPopup",
+        "Button ID is not valid: ",
+    ),
+    filters = listOf(
+        methodCall(
+            smali = "Lrj;->d(Ljava/util/List;)V",
+        ),
+    ),
+)
 
 object ContextMenuFingerprint : Fingerprint(
     strings = listOf(
@@ -22,31 +35,44 @@ object ContextMenuFingerprint : Fingerprint(
 )
 
 /**
- * Injects one-tap Archiving & Unarchiving options directly into the long-press
- * app popup menu (the same menu used for uninstalling apps).
+ * Injects a dedicated "Archive App" item into the long-press contextual popup menu,
+ * and adds one-tap archive/restore options to the uninstall prompt.
  */
 @Suppress("unused")
 val morpheContextualActionPatch = bytecodePatch(
     name = "Contextual app menu actions",
-    description = "Allows archiving and unarchiving apps directly from the long-press popup menu (where Uninstall is located).",
+    description = "Adds a dedicated Archive App entry into the long-press popup menu.",
     default = true,
 ) {
     compatibleWith(Constants.COMPATIBILITY)
 
     execute {
-        val match = ContextMenuFingerprint.matchOrNull()
-            ?: throw PatchException("Could not find popup menu uninstall handler in Smart Launcher")
+        // 1. Inject dedicated Archive item into popup menu list
+        PopupListFingerprint.matchOrNull()?.let { match ->
+            val method = match.method
+            val showInsnIndex = match.instructionMatches.first().index
+            val insn = method.getInstruction<FiveRegisterInstruction>(showInsnIndex)
+            val regList = insn.registerD
 
-        val method = match.method
-        val matchIndex = match.instructionMatches.first().index
+            method.addInstruction(
+                showInsnIndex,
+                "invoke-static {v$regList}, Lcom/autocat/morphe/smartlauncher/extension/MorpheMenuInjector;->injectArchiveItem(Ljava/util/List;)V",
+            )
+        }
 
-        val insn = method.getInstruction<FiveRegisterInstruction>(matchIndex)
-        val regContext = insn.registerC
-        val regIntent = insn.registerD
+        // 2. Intercept Uninstall action handler for smart prompt
+        ContextMenuFingerprint.matchOrNull()?.let { match ->
+            val method = match.method
+            val matchIndex = match.instructionMatches.first().index
 
-        method.replaceInstruction(
-            matchIndex,
-            "invoke-static {v$regContext, v$regIntent}, Lcom/autocat/morphe/smartlauncher/extension/MorpheMenuInjector;->handleUninstallOrArchive(Landroid/content/Context;Landroid/content/Intent;)V",
-        )
+            val insn = method.getInstruction<FiveRegisterInstruction>(matchIndex)
+            val regContext = insn.registerC
+            val regIntent = insn.registerD
+
+            method.replaceInstruction(
+                matchIndex,
+                "invoke-static {v$regContext, v$regIntent}, Lcom/autocat/morphe/smartlauncher/extension/MorpheMenuInjector;->handleUninstallOrArchive(Landroid/content/Context;Landroid/content/Intent;)V",
+            )
+        }
     }
 }

@@ -7,24 +7,145 @@ import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.util.Log;
 import android.widget.Toast;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+import java.util.List;
+
 /**
- * Injects Morphe Actions into Smart Launcher's contextual long-press menus and settings.
+ * Injects Morphe Actions into Smart Launcher's contextual long-press popup menus and settings.
  */
 public final class MorpheMenuInjector {
+
+    private static final String TAG = "MorpheMenuInjector";
+    private static String sLastPackageName = null;
+    private static Context sLastContext = null;
 
     private MorpheMenuInjector() {}
 
     /**
-     * Intercepts the Uninstall action triggered from the long-press popup menu.
-     * Offers the user the choice between Archiving (save space, keep data) and Complete Uninstallation.
+     * Records the active package when a long-press popup is opened.
      */
-    public static void handleUninstallOrArchive(final Context context, final Intent uninstallIntent) {
-        if (context == null) {
+    public static void setLastTarget(Context context, String packageName) {
+        sLastContext = context;
+        sLastPackageName = packageName;
+    }
+
+    /**
+     * Injects a dedicated "Archive App" item into Smart Launcher's contextual popup menu list.
+     */
+    @SuppressWarnings("rawtypes")
+    public static void injectArchiveItem(List items) {
+        if (items == null || items.isEmpty()) {
             return;
         }
-        if (uninstallIntent == null) {
+
+        try {
+            Object sampleItem = null;
+            for (Object obj : items) {
+                if (obj != null && obj.getClass().getName().endsWith("q36")) {
+                    sampleItem = obj;
+                    break;
+                }
+            }
+
+            if (sampleItem == null) {
+                return;
+            }
+
+            Class<?> q36Class = sampleItem.getClass();
+            Field stringField = null;
+            Field actionField = null;
+            Field intFieldA = null;
+            Field intFieldB = null;
+
+            for (Field f : q36Class.getDeclaredFields()) {
+                f.setAccessible(true);
+                if (f.getType() == String.class && stringField == null) {
+                    stringField = f;
+                } else if (f.getName().equals("f") || f.getType().getName().contains("b34") || f.getType().getName().contains("Function")) {
+                    actionField = f;
+                } else if (f.getType() == int.class) {
+                    if (intFieldA == null) intFieldA = f;
+                    else if (intFieldB == null) intFieldB = f;
+                }
+            }
+
+            // Create a proxy onClick handler for Kotlin Function1 (b34)
+            Class<?> function1Class = Class.forName("b34");
+            Object clickProxy = Proxy.newProxyInstance(
+                    q36Class.getClassLoader(),
+                    new Class<?>[]{function1Class},
+                    new InvocationHandler() {
+                        @Override
+                        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+                            if ("invoke".equals(method.getName())) {
+                                onArchiveClicked();
+                                return null;
+                            }
+                            return null;
+                        }
+                    }
+            );
+
+            // Instantiate a new q36 entry via reflection
+            Constructor<?>[] constructors = q36Class.getDeclaredConstructors();
+            if (constructors.length > 0) {
+                Constructor<?> ctor = constructors[0];
+                ctor.setAccessible(true);
+                Class<?>[] paramTypes = ctor.getParameterTypes();
+                Object[] initArgs = new Object[paramTypes.length];
+
+                for (int i = 0; i < paramTypes.length; i++) {
+                    if (paramTypes[i] == int.class) initArgs[i] = 0;
+                    else if (paramTypes[i] == boolean.class) initArgs[i] = false;
+                    else if (paramTypes[i] == String.class) initArgs[i] = "Archive App";
+                    else if (paramTypes[i].isAssignableFrom(function1Class)) initArgs[i] = clickProxy;
+                    else initArgs[i] = null;
+                }
+
+                Object archiveItem = ctor.newInstance(initArgs);
+                if (stringField != null) stringField.set(archiveItem, "Archive");
+                if (actionField != null) actionField.set(archiveItem, clickProxy);
+
+                // Add to the popup list right next to other app actions
+                items.add(archiveItem);
+                Log.i(TAG, "Successfully injected Archive App entry into popup menu");
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "Safe popup item injection catch: " + t.getMessage());
+        }
+    }
+
+    private static void onArchiveClicked() {
+        Context context = sLastContext;
+        String packageName = sLastPackageName;
+
+        if (context == null || packageName == null) {
+            return;
+        }
+
+        try {
+            boolean ok = ShizukuArchiveHelper.archivePackage(packageName);
+            if (!ok) {
+                ok = NativeArchiveHelper.archivePackage(context, packageName);
+            }
+            Toast.makeText(context, ok ? "Archiving app..." : "Failed to archive app", Toast.LENGTH_SHORT).show();
+        } catch (Throwable t) {
+            Toast.makeText(context, "Archive error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /**
+     * Intercepts the Uninstall action triggered from the long-press popup menu.
+     */
+    public static void handleUninstallOrArchive(final Context context, final Intent uninstallIntent) {
+        if (context == null || uninstallIntent == null) {
             return;
         }
 
