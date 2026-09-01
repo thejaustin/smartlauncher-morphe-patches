@@ -52,11 +52,12 @@ val morpheContextualActionPatch = bytecodePatch(
             val method = match.method
             val showInsnIndex = match.instructionMatches.first().index
             val insn = method.getInstruction<FiveRegisterInstruction>(showInsnIndex)
+            val regPopup = insn.registerC
             val regList = insn.registerD
 
             method.addInstruction(
                 showInsnIndex,
-                "invoke-static {v$regList}, Lcom/autocat/morphe/smartlauncher/extension/MorpheMenuInjector;->injectArchiveItem(Ljava/util/List;)V",
+                "invoke-static {v$regPopup, v$regList, p0}, Lcom/autocat/morphe/smartlauncher/extension/MorpheMenuInjector;->injectArchiveItem(Ljava/lang/Object;Ljava/util/List;Ljava/lang/Object;)V",
             )
         }
 

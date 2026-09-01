@@ -1,6 +1,7 @@
 package com.autocat.morphe.smartlauncher.extension;
 
 import android.app.AlertDialog;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -8,6 +9,7 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.util.Log;
+import android.view.View;
 import android.widget.Toast;
 
 import java.lang.reflect.Constructor;
@@ -29,23 +31,68 @@ public final class MorpheMenuInjector {
     private MorpheMenuInjector() {}
 
     /**
-     * Records the active package when a long-press popup is opened.
-     */
-    public static void setLastTarget(Context context, String packageName) {
-        sLastContext = context;
-        sLastPackageName = packageName;
-    }
-
-    /**
-     * Injects a dedicated "Archive App" item into Smart Launcher's contextual popup menu list.
+     * Injects a dedicated "Archive App" or "Restore App" item into Smart Launcher's contextual popup menu list.
+     *
+     * @param popupLayerObj The Lrj; popup controller (contains view & context)
+     * @param items         The List of popup items (LinkedList of q36)
+     * @param callerObj     The Ldl3; coroutine closure (contains target ComponentName)
      */
     @SuppressWarnings("rawtypes")
-    public static void injectArchiveItem(List items) {
-        if (items == null || items.isEmpty()) {
+    public static void injectArchiveItem(Object popupLayerObj, List items, Object callerObj) {
+        if (items == null) {
             return;
         }
 
         try {
+            Context context = null;
+            String packageName = null;
+
+            // 1. Extract context from popupLayerObj (Lrj; -> field n: View)
+            if (popupLayerObj != null) {
+                for (Field f : popupLayerObj.getClass().getDeclaredFields()) {
+                    f.setAccessible(true);
+                    Object val = f.get(popupLayerObj);
+                    if (val instanceof View) {
+                        context = ((View) val).getContext();
+                        break;
+                    }
+                }
+            }
+
+            // 2. Extract target packageName from callerObj (Ldl3; -> field y: ComponentName)
+            if (callerObj != null) {
+                for (Field f : callerObj.getClass().getDeclaredFields()) {
+                    f.setAccessible(true);
+                    Object val = f.get(callerObj);
+                    if (val instanceof ComponentName) {
+                        packageName = ((ComponentName) val).getPackageName();
+                        break;
+                    } else if (val instanceof String && ((String) val).contains(".")) {
+                        packageName = (String) val;
+                    }
+                }
+            }
+
+            if (context == null) {
+                context = sLastContext;
+            } else {
+                sLastContext = context;
+            }
+
+            if (packageName == null) {
+                packageName = sLastPackageName;
+            } else {
+                sLastPackageName = packageName;
+            }
+
+            final Context finalContext = context;
+            final String finalPackageName = packageName;
+
+            if (finalContext == null || finalPackageName == null) {
+                return;
+            }
+
+            // 3. Find sample q36 item to clone reflection structures
             Object sampleItem = null;
             for (Object obj : items) {
                 if (obj != null && obj.getClass().getName().endsWith("q36")) {
@@ -61,8 +108,6 @@ public final class MorpheMenuInjector {
             Class<?> q36Class = sampleItem.getClass();
             Field stringField = null;
             Field actionField = null;
-            Field intFieldA = null;
-            Field intFieldB = null;
 
             for (Field f : q36Class.getDeclaredFields()) {
                 f.setAccessible(true);
@@ -70,13 +115,16 @@ public final class MorpheMenuInjector {
                     stringField = f;
                 } else if (f.getName().equals("f") || f.getType().getName().contains("b34") || f.getType().getName().contains("Function")) {
                     actionField = f;
-                } else if (f.getType() == int.class) {
-                    if (intFieldA == null) intFieldA = f;
-                    else if (intFieldB == null) intFieldB = f;
                 }
             }
 
-            // Create a proxy onClick handler for Kotlin Function1 (b34)
+            // Check if app is currently archived
+            PackageManager pm = finalContext.getPackageManager();
+            ApplicationInfo appInfo = pm.getApplicationInfo(finalPackageName, 0);
+            final boolean isArchived = (appInfo.flags & 0x40000000) != 0;
+            final String actionTitle = isArchived ? "♻️ Restore / Unarchive" : "📦 Archive App";
+
+            // 4. Create a proxy onClick handler for Kotlin Function1 (b34)
             Class<?> function1Class = Class.forName("b34");
             Object clickProxy = Proxy.newProxyInstance(
                     q36Class.getClassLoader(),
@@ -85,7 +133,20 @@ public final class MorpheMenuInjector {
                         @Override
                         public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
                             if ("invoke".equals(method.getName())) {
-                                onArchiveClicked();
+                                boolean ok;
+                                if (isArchived) {
+                                    ok = ShizukuArchiveHelper.unarchivePackage(finalPackageName);
+                                    if (!ok) {
+                                        ok = NativeArchiveHelper.unarchivePackage(finalContext, finalPackageName);
+                                    }
+                                    Toast.makeText(finalContext, ok ? "Unarchiving " + finalPackageName + "..." : "Failed to unarchive app", Toast.LENGTH_SHORT).show();
+                                } else {
+                                    ok = ShizukuArchiveHelper.archivePackage(finalPackageName);
+                                    if (!ok) {
+                                        ok = NativeArchiveHelper.archivePackage(finalContext, finalPackageName);
+                                    }
+                                    Toast.makeText(finalContext, ok ? "Archiving " + finalPackageName + "..." : "Failed to archive app", Toast.LENGTH_SHORT).show();
+                                }
                                 return null;
                             }
                             return null;
@@ -93,7 +154,7 @@ public final class MorpheMenuInjector {
                     }
             );
 
-            // Instantiate a new q36 entry via reflection
+            // 5. Instantiate a new q36 entry via reflection
             Constructor<?>[] constructors = q36Class.getDeclaredConstructors();
             if (constructors.length > 0) {
                 Constructor<?> ctor = constructors[0];
@@ -104,40 +165,21 @@ public final class MorpheMenuInjector {
                 for (int i = 0; i < paramTypes.length; i++) {
                     if (paramTypes[i] == int.class) initArgs[i] = 0;
                     else if (paramTypes[i] == boolean.class) initArgs[i] = false;
-                    else if (paramTypes[i] == String.class) initArgs[i] = "Archive App";
+                    else if (paramTypes[i] == String.class) initArgs[i] = actionTitle;
                     else if (paramTypes[i].isAssignableFrom(function1Class)) initArgs[i] = clickProxy;
                     else initArgs[i] = null;
                 }
 
                 Object archiveItem = ctor.newInstance(initArgs);
-                if (stringField != null) stringField.set(archiveItem, "Archive");
+                if (stringField != null) stringField.set(archiveItem, actionTitle);
                 if (actionField != null) actionField.set(archiveItem, clickProxy);
 
                 // Add to the popup list right next to other app actions
                 items.add(archiveItem);
-                Log.i(TAG, "Successfully injected Archive App entry into popup menu");
+                Log.i(TAG, "Successfully injected " + actionTitle + " entry into popup menu for " + finalPackageName);
             }
         } catch (Throwable t) {
             Log.w(TAG, "Safe popup item injection catch: " + t.getMessage());
-        }
-    }
-
-    private static void onArchiveClicked() {
-        Context context = sLastContext;
-        String packageName = sLastPackageName;
-
-        if (context == null || packageName == null) {
-            return;
-        }
-
-        try {
-            boolean ok = ShizukuArchiveHelper.archivePackage(packageName);
-            if (!ok) {
-                ok = NativeArchiveHelper.archivePackage(context, packageName);
-            }
-            Toast.makeText(context, ok ? "Archiving app..." : "Failed to archive app", Toast.LENGTH_SHORT).show();
-        } catch (Throwable t) {
-            Toast.makeText(context, "Archive error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
