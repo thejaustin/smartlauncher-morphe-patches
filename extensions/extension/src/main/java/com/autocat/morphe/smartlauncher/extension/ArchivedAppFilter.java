@@ -7,6 +7,7 @@ import android.os.Build;
 import android.os.UserHandle;
 import android.util.Log;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -22,7 +23,7 @@ import java.util.List;
 public class ArchivedAppFilter {
 
     private static final String TAG = "ArchivedAppFilter";
-    private static final int FLAG_ARCHIVED = 0x40000000; // Bit 30 in ApplicationInfo.flags
+    private static final int FLAG_ARCHIVED = 0x40000000; // Bit 30 in ApplicationInfo.flags (1 << 30)
 
     /**
      * 1-to-1 drop-in replacement for {@code LauncherApps.getActivityList(String, UserHandle)}.
@@ -107,14 +108,19 @@ public class ArchivedAppFilter {
                 return false;
             }
 
-            // Signal 1: FLAG_ARCHIVED bit 30
+            // Check 1: Direct bitmask check (Bit 30 in ApplicationInfo.flags)
             if ((appInfo.flags & FLAG_ARCHIVED) != 0) {
                 return true;
             }
 
-            // Signal 2: Check if APK base file was stripped
-            if (appInfo.sourceDir == null || appInfo.sourceDir.isEmpty()) {
-                return true;
+            // Check 2: Dynamic reflection on ApplicationInfo.isArchived() if available on API 35+
+            try {
+                Method isArchivedMethod = ApplicationInfo.class.getMethod("isArchived");
+                Boolean isArchived = (Boolean) isArchivedMethod.invoke(appInfo);
+                if (isArchived != null && isArchived) {
+                    return true;
+                }
+            } catch (NoSuchMethodException ignored) {
             }
 
             return false;
