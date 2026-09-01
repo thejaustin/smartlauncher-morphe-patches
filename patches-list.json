@@ -1,192 +1,126 @@
 {
+  "NOTE": "Do NOT manually edit this file. This file is automatically updated when semantic release (release.yml) runs. Manually editing this file can break your releases and break third party tools that use this file.",
   "version": "1.1.0",
-  "downloadUrl": "https://github.com/thejaustin/smartlauncher-morphe-patches/releases/latest/download/smartlauncher-morphe-patches.mpp",
   "patches": [
     {
       "name": "Hide archived apps",
       "description": "Filters archived apps out of the app drawer, the add-to-home-screen picker, and the shortcut picker.",
       "default": true,
-      "use": true,
       "dependencies": [],
       "compatiblePackages": [
         {
           "packageName": "ginlemon.flowerfree",
           "name": "Smart Launcher 6",
-          "versions": [
-            "6.6 build 001",
-            "6.6 build 002",
-            "6.6 build 003",
-            "6.6 build 004",
-            "6.6 build 005",
-            "6.6 build 006",
-            "6.6 build 007",
-            "6.6 build 008",
-            "6.6 build 009",
-            "6.6 build 010",
-            "6.6 build 011",
-            "6.6 build 012",
-            "6.6 build 013",
-            "6.6 build 014",
-            "6.6 build 015",
-            "6.6 build 016",
-            "6.6 build 017",
-            "6.6 build 018",
-            "6.6 build 019",
-            "6.6 build 020",
-            "6.6 build 021",
-            "6.6 build 022",
-            "6.6 build 023",
-            "6.6 build 024",
-            "6.6 build 025",
-            "6.7 build 001",
-            "6.7 build 002",
-            "6.7 build 003",
-            "6.7 build 004",
-            "6.7 build 005"
-          ],
+          "description": null,
+          "apkFileType": "APK_REQUIRED",
+          "appIconColor": "#3B82F6",
+          "signatures": [],
           "targets": [
             {
               "version": "6.6 build 017",
+              "versionCodes": null,
               "isExperimental": true,
-              "minSdk": 24
+              "minSdk": 24,
+              "description": null
             },
             {
               "version": "6.6 build 016",
+              "versionCodes": null,
               "isExperimental": true,
-              "minSdk": 24
+              "minSdk": 24,
+              "description": null
             },
             {
               "version": "6.6 build 002",
+              "versionCodes": null,
               "isExperimental": true,
-              "minSdk": 24
+              "minSdk": 24,
+              "description": null
             }
           ]
         }
-      ]
+      ],
+      "options": []
     },
     {
       "name": "Native app archiving",
       "description": "Enables system PackageInstaller/LauncherApps native archiving runtime on Android 15+ / One UI 7.",
       "default": true,
-      "use": true,
       "dependencies": [],
       "compatiblePackages": [
         {
           "packageName": "ginlemon.flowerfree",
           "name": "Smart Launcher 6",
-          "versions": [
-            "6.6 build 001",
-            "6.6 build 002",
-            "6.6 build 003",
-            "6.6 build 004",
-            "6.6 build 005",
-            "6.6 build 006",
-            "6.6 build 007",
-            "6.6 build 008",
-            "6.6 build 009",
-            "6.6 build 010",
-            "6.6 build 011",
-            "6.6 build 012",
-            "6.6 build 013",
-            "6.6 build 014",
-            "6.6 build 015",
-            "6.6 build 016",
-            "6.6 build 017",
-            "6.6 build 018",
-            "6.6 build 019",
-            "6.6 build 020",
-            "6.6 build 021",
-            "6.6 build 022",
-            "6.6 build 023",
-            "6.6 build 024",
-            "6.6 build 025",
-            "6.7 build 001",
-            "6.7 build 002",
-            "6.7 build 003",
-            "6.7 build 004",
-            "6.7 build 005"
-          ],
+          "description": null,
+          "apkFileType": "APK_REQUIRED",
+          "appIconColor": "#3B82F6",
+          "signatures": [],
           "targets": [
             {
               "version": "6.6 build 017",
+              "versionCodes": null,
               "isExperimental": true,
-              "minSdk": 24
+              "minSdk": 24,
+              "description": null
             },
             {
               "version": "6.6 build 016",
+              "versionCodes": null,
               "isExperimental": true,
-              "minSdk": 24
+              "minSdk": 24,
+              "description": null
             },
             {
               "version": "6.6 build 002",
+              "versionCodes": null,
               "isExperimental": true,
-              "minSdk": 24
+              "minSdk": 24,
+              "description": null
             }
           ]
         }
-      ]
+      ],
+      "options": []
     },
     {
       "name": "Shizuku app archiving",
       "description": "Enables Shizuku binder-level privileged app archiving execution in Smart Launcher 6.",
       "default": true,
-      "use": true,
       "dependencies": [],
       "compatiblePackages": [
         {
           "packageName": "ginlemon.flowerfree",
           "name": "Smart Launcher 6",
-          "versions": [
-            "6.6 build 001",
-            "6.6 build 002",
-            "6.6 build 003",
-            "6.6 build 004",
-            "6.6 build 005",
-            "6.6 build 006",
-            "6.6 build 007",
-            "6.6 build 008",
-            "6.6 build 009",
-            "6.6 build 010",
-            "6.6 build 011",
-            "6.6 build 012",
-            "6.6 build 013",
-            "6.6 build 014",
-            "6.6 build 015",
-            "6.6 build 016",
-            "6.6 build 017",
-            "6.6 build 018",
-            "6.6 build 019",
-            "6.6 build 020",
-            "6.6 build 021",
-            "6.6 build 022",
-            "6.6 build 023",
-            "6.6 build 024",
-            "6.6 build 025",
-            "6.7 build 001",
-            "6.7 build 002",
-            "6.7 build 003",
-            "6.7 build 004",
-            "6.7 build 005"
-          ],
+          "description": null,
+          "apkFileType": "APK_REQUIRED",
+          "appIconColor": "#3B82F6",
+          "signatures": [],
           "targets": [
             {
               "version": "6.6 build 017",
+              "versionCodes": null,
               "isExperimental": true,
-              "minSdk": 24
+              "minSdk": 24,
+              "description": null
             },
             {
               "version": "6.6 build 016",
+              "versionCodes": null,
               "isExperimental": true,
-              "minSdk": 24
+              "minSdk": 24,
+              "description": null
             },
             {
               "version": "6.6 build 002",
+              "versionCodes": null,
               "isExperimental": true,
-              "minSdk": 24
+              "minSdk": 24,
+              "description": null
             }
           ]
         }
-      ]
+      ],
+      "options": []
     }
   ]
 }
