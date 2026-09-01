@@ -30,7 +30,6 @@ val patchListGeneratorClasspath: Configuration by configurations.creating
 dependencies {
     compileOnly(libs.gson)
     patchListGeneratorClasspath(libs.gson)
-    implementation(project(":extensions:extension"))
 }
 
 tasks {
