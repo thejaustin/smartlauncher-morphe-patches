@@ -3,8 +3,10 @@ package com.autocat.morphe.smartlauncher.extension;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.widget.Toast;
 
 /**
@@ -15,14 +17,26 @@ public final class MorpheMenuInjector {
     private MorpheMenuInjector() {}
 
     /**
-     * Called when an app is long-pressed in the App Drawer or Categories screen.
+     * Intercepts the Uninstall action triggered from the long-press popup menu.
+     * Offers the user the choice between Archiving (save space, keep data) and Complete Uninstallation.
      */
-    public static void onAppLongPress(final Context context, final String packageName) {
-        if (context == null || packageName == null || packageName.isEmpty()) {
+    public static void handleUninstallOrArchive(final Context context, final Intent uninstallIntent) {
+        if (context == null) {
+            return;
+        }
+        if (uninstallIntent == null) {
             return;
         }
 
         try {
+            Uri data = uninstallIntent.getData();
+            final String packageName = (data != null) ? data.getSchemeSpecificPart() : null;
+
+            if (packageName == null || packageName.isEmpty()) {
+                context.startActivity(uninstallIntent);
+                return;
+            }
+
             PackageManager pm = context.getPackageManager();
             ApplicationInfo appInfo = pm.getApplicationInfo(packageName, 0);
             CharSequence label = appInfo.loadLabel(pm);
@@ -32,37 +46,50 @@ public final class MorpheMenuInjector {
             AlertDialog.Builder builder = new AlertDialog.Builder(context);
             builder.setTitle("📦 " + appName);
 
-            String[] options = isArchived
-                    ? new String[]{"♻️ Restore / Unarchive App", "⚙️ Morphe Mod Settings"}
-                    : new String[]{"📦 Archive App (Save Storage)", "⚙️ Morphe Mod Settings"};
-
-            builder.setItems(options, new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    if (which == 0) {
-                        if (isArchived) {
-                            boolean ok = ShizukuArchiveHelper.unarchivePackage(packageName);
-                            if (!ok) {
-                                ok = NativeArchiveHelper.unarchivePackage(context, packageName);
-                            }
-                            Toast.makeText(context, ok ? "Unarchiving " + appName + "..." : "Failed to unarchive", Toast.LENGTH_SHORT).show();
-                        } else {
-                            boolean ok = ShizukuArchiveHelper.archivePackage(packageName);
-                            if (!ok) {
-                                ok = NativeArchiveHelper.archivePackage(context, packageName);
-                            }
-                            Toast.makeText(context, ok ? "Archiving " + appName + "..." : "Failed to archive", Toast.LENGTH_SHORT).show();
+            if (isArchived) {
+                builder.setMessage("This application is currently archived. Choose an action:");
+                builder.setPositiveButton("♻️ Restore / Unarchive", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        boolean ok = ShizukuArchiveHelper.unarchivePackage(packageName);
+                        if (!ok) {
+                            ok = NativeArchiveHelper.unarchivePackage(context, packageName);
                         }
-                    } else if (which == 1) {
-                        MorpheSettingsDialog.show(context);
+                        Toast.makeText(context, ok ? "Unarchiving " + appName + "..." : "Failed to unarchive", Toast.LENGTH_SHORT).show();
                     }
-                }
-            });
+                });
+                builder.setNeutralButton("🗑️ Delete Completely", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        context.startActivity(uninstallIntent);
+                    }
+                });
+            } else {
+                builder.setMessage("Choose an action for " + appName + ":");
+                builder.setPositiveButton("📦 Archive App (Save Space)", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        boolean ok = ShizukuArchiveHelper.archivePackage(packageName);
+                        if (!ok) {
+                            ok = NativeArchiveHelper.archivePackage(context, packageName);
+                        }
+                        Toast.makeText(context, ok ? "Archiving " + appName + "..." : "Failed to archive", Toast.LENGTH_SHORT).show();
+                    }
+                });
+                builder.setNeutralButton("🗑️ Uninstall", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        context.startActivity(uninstallIntent);
+                    }
+                });
+            }
 
             builder.setNegativeButton("Cancel", null);
             builder.show();
         } catch (Throwable t) {
-            Toast.makeText(context, "Morphe action error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            try {
+                context.startActivity(uninstallIntent);
+            } catch (Throwable ignored) {}
         }
     }
 

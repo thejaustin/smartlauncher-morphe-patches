@@ -1,6 +1,6 @@
 {
   "NOTE": "Do NOT manually edit this file. This file is automatically updated when semantic release (release.yml) runs. Manually editing this file can break your releases and break third party tools that use this file.",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "patches": [
     {
       "name": "Bypass signature check",
@@ -55,8 +55,8 @@
       "options": []
     },
     {
-      "name": "Morphe settings UI integration",
-      "description": "Integrates the Morphe Patches & App Archiving settings panel into Smart Launcher Settings (under Dev options).",
+      "name": "Contextual app menu actions",
+      "description": "Allows archiving and unarchiving apps directly from the long-press popup menu (where Uninstall is located).",
       "default": true,
       "dependencies": [],
       "compatiblePackages": [
@@ -81,9 +81,9 @@
       "options": []
     },
     {
-      "name": "Contextual app menu actions",
-      "description": "Enables one-tap app archiving and restoring when holding down an app in the drawer or categories.",
-      "default": false,
+      "name": "Morphe settings UI integration",
+      "description": "Integrates the Morphe Patches & App Archiving settings panel into Smart Launcher Settings (under Dev options).",
+      "default": true,
       "dependencies": [],
       "compatiblePackages": [
         {
