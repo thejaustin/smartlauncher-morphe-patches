@@ -8,3 +8,8 @@ android {
         minSdk = 24
     }
 }
+
+configurations.all {
+    exclude(group = "org.jetbrains.kotlin")
+    exclude(group = "org.jetbrains")
+}
