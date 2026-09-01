@@ -14,8 +14,9 @@ import java.util.List;
 /**
  * High-performance, crash-resilient runtime wrapper for Smart Launcher 6 app archiving.
  * <p>
- * Directly replaces {@code LauncherApps.getActivityList(...)} call sites in-place,
- * filtering out archived packages before Smart Launcher's coroutines process them.
+ * Selectively filters archived applications when loading the global App Drawer
+ * (where packageName is null), while preserving single-package lookups to prevent
+ * NoSuchElementException / IndexOutOfBoundsException during home-screen icon restoration.
  */
 @SuppressWarnings("unused")
 public class ArchivedAppFilter {
@@ -36,7 +37,15 @@ public class ArchivedAppFilter {
                 return Collections.emptyList();
             }
             List<LauncherActivityInfo> activities = launcherApps.getActivityList(packageName, user);
-            return filter(activities);
+
+            // CRITICAL FIX: Only filter archived apps when querying the full application list
+            // (packageName == null or empty). When Smart Launcher queries a specific package
+            // (packageName != null), return the list directly so home screen icon restoration
+            // calling list.first() / list[0] never throws IndexOutOfBoundsException.
+            if (packageName == null || packageName.isEmpty()) {
+                return filter(activities);
+            }
+            return activities;
         } catch (Throwable t) {
             Log.e(TAG, "Safe fallback in getActivityList wrapper", t);
             try {
