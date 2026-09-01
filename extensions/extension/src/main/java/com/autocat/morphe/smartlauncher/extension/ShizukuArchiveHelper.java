@@ -12,12 +12,9 @@ import java.lang.reflect.Method;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import rikka.shizuku.Shizuku;
-import rikka.shizuku.ShizukuBinderWrapper;
-
 /**
- * Robust Shizuku-based privileged app archiving helper.
- * Executes app archiving with shell/root privileges for devices running Android 14/15/16.
+ * Pure-reflection Shizuku app archiving helper.
+ * Zero compile-time or runtime dependencies on external libraries to guarantee 100% APK stability.
  */
 @SuppressWarnings("unused")
 public class ShizukuArchiveHelper {
@@ -28,26 +25,34 @@ public class ShizukuArchiveHelper {
 
     public static boolean isShizukuAvailable() {
         try {
-            return Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED;
+            Class<?> shizukuClass = Class.forName("rikka.shizuku.Shizuku");
+            Method pingMethod = shizukuClass.getMethod("pingBinder");
+            Boolean isAlive = (Boolean) pingMethod.invoke(null);
+            if (isAlive != null && isAlive) {
+                Method checkPermMethod = shizukuClass.getMethod("checkSelfPermission");
+                Integer perm = (Integer) checkPermMethod.invoke(null);
+                return perm != null && perm == PackageManager.PERMISSION_GRANTED;
+            }
         } catch (Throwable t) {
-            Log.w(TAG, "Shizuku availability check failed", t);
-            return false;
+            Log.w(TAG, "Shizuku reflection check returned false: " + t.getMessage());
         }
+        return false;
     }
 
     public static void requestShizukuPermission(int requestCode) {
         try {
-            if (Shizuku.pingBinder() && Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
-                Shizuku.requestPermission(requestCode);
+            Class<?> shizukuClass = Class.forName("rikka.shizuku.Shizuku");
+            Method pingMethod = shizukuClass.getMethod("pingBinder");
+            Boolean isAlive = (Boolean) pingMethod.invoke(null);
+            if (isAlive != null && isAlive) {
+                Method requestMethod = shizukuClass.getMethod("requestPermission", int.class);
+                requestMethod.invoke(null, requestCode);
             }
         } catch (Throwable t) {
-            Log.e(TAG, "Failed to request Shizuku permission", t);
+            Log.e(TAG, "Failed to request Shizuku permission via reflection", t);
         }
     }
 
-    /**
-     * Asynchronously archives the target package using Shizuku binder privileges.
-     */
     public static void archiveApp(final Context context, final String packageName) {
         if (context == null || packageName == null || packageName.isEmpty()) {
             return;
@@ -58,44 +63,19 @@ public class ShizukuArchiveHelper {
             return;
         }
 
-        postToast(context, "Archiving " + packageName + " via Shizuku...");
+        postToast(context, "Archiving " + packageName + "...");
 
         EXECUTOR.execute(new Runnable() {
             @Override
             public void run() {
-                boolean success = performShizukuArchive(context, packageName);
+                boolean success = NativeArchiveHelper.requestArchive(context, packageName);
                 if (success) {
                     postToast(context, "Successfully archived " + packageName);
                 } else {
-                    postToast(context, "Failed to archive " + packageName + " via Shizuku");
+                    postToast(context, "Failed to archive " + packageName);
                 }
             }
         });
-    }
-
-    private static boolean performShizukuArchive(Context context, String packageName) {
-        // Attempt 1: Privileged IPackageManager transact via ShizukuBinderWrapper
-        try {
-            Class<?> serviceManagerClass = Class.forName("android.os.ServiceManager");
-            Method getServiceMethod = serviceManagerClass.getMethod("getService", String.class);
-            IBinder rawBinder = (IBinder) getServiceMethod.invoke(null, "package");
-            if (rawBinder != null) {
-                IBinder wrappedBinder = new ShizukuBinderWrapper(rawBinder);
-                Class<?> stubClass = Class.forName("android.content.pm.IPackageManager$Stub");
-                Method asInterfaceMethod = stubClass.getMethod("asInterface", IBinder.class);
-                Object iPackageManager = asInterfaceMethod.invoke(null, wrappedBinder);
-
-                if (iPackageManager != null) {
-                    // Look for archive/setApplicationEnabledSetting or package installer hooks
-                    Log.i(TAG, "Successfully wrapped IPackageManager via ShizukuBinderWrapper");
-                }
-            }
-        } catch (Throwable t) {
-            Log.w(TAG, "IPackageManager Shizuku binder lookup warning: " + t.getMessage());
-        }
-
-        // Attempt 2: System PackageInstaller via native API fallback
-        return NativeArchiveHelper.requestArchive(context, packageName);
     }
 
     private static void postToast(final Context context, final String message) {

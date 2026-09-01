@@ -8,7 +8,3 @@ android {
         minSdk = 24
     }
 }
-
-dependencies {
-    implementation(libs.rikka.shizuku.api)
-}
