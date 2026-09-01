@@ -9,44 +9,38 @@ import com.android.tools.smali.dexlib2.iface.instruction.RegisterRangeInstructio
 import com.autocat.morphe.smartlauncher.shared.Constants
 
 /**
- * Filters archived apps (Android 15+ app archiving) out of every app list
- * Smart Launcher builds, by replacing `LauncherApps.getActivityList()` call sites
- * in-place with `ArchivedAppFilter.getActivityList()`.
- *
- * In-place 1-to-1 instruction replacement preserves exact bytecode instruction offsets,
- * try-catch boundaries, and coroutine jump targets.
+ * Filters archived apps (Android 15+ app archiving) exclusively out of the App Drawer.
+ * Scoped strictly to DrawerRepository to preserve 100% stability across desktop restoration,
+ * widgets, and launcher bootstrap.
  */
 @Suppress("unused")
 val hideArchivedAppsPatch = bytecodePatch(
     name = "Hide archived apps",
-    description = "Filters archived apps out of the app drawer, the add-to-home-screen picker, and the shortcut picker.",
+    description = "Filters archived apps out of the app drawer.",
     default = true,
 ) {
     compatibleWith(Constants.COMPATIBILITY)
 
     execute {
-        val matches = GetActivityListFingerprint.matchAllOrNull()
-            ?: throw PatchException("Could not find any LauncherApps.getActivityList() call sites")
+        val match = GetActivityListFingerprint.matchOrNull()
+            ?: throw PatchException("Could not find App Drawer LauncherApps.getActivityList() call site")
 
-        matches.forEach { match ->
-            val method = match.method
-            match.instructionMatches.forEach { insnMatch ->
-                val invokeIndex = insnMatch.index
-                val smali = try {
-                    val insn = method.getInstruction<FiveRegisterInstruction>(invokeIndex)
-                    val regA = insn.registerC
-                    val regB = insn.registerD
-                    val regC = insn.registerE
-                    "invoke-static {v$regA, v$regB, v$regC}, Lcom/autocat/morphe/smartlauncher/extension/ArchivedAppFilter;->getActivityList(Landroid/content/pm/LauncherApps;Ljava/lang/String;Landroid/os/UserHandle;)Ljava/util/List;"
-                } catch (t: Throwable) {
-                    val insn = method.getInstruction<RegisterRangeInstruction>(invokeIndex)
-                    val start = insn.startRegister
-                    val end = start + insn.registerCount - 1
-                    "invoke-static/range {v$start .. v$end}, Lcom/autocat/morphe/smartlauncher/extension/ArchivedAppFilter;->getActivityList(Landroid/content/pm/LauncherApps;Ljava/lang/String;Landroid/os/UserHandle;)Ljava/util/List;"
-                }
-
-                method.replaceInstruction(invokeIndex, smali)
-            }
+        val method = match.method
+        val insnMatch = match.instructionMatches.first()
+        val invokeIndex = insnMatch.index
+        val smali = try {
+            val insn = method.getInstruction<FiveRegisterInstruction>(invokeIndex)
+            val regA = insn.registerC
+            val regB = insn.registerD
+            val regC = insn.registerE
+            "invoke-static {v$regA, v$regB, v$regC}, Lcom/autocat/morphe/smartlauncher/extension/ArchivedAppFilter;->getActivityList(Landroid/content/pm/LauncherApps;Ljava/lang/String;Landroid/os/UserHandle;)Ljava/util/List;"
+        } catch (t: Throwable) {
+            val insn = method.getInstruction<RegisterRangeInstruction>(invokeIndex)
+            val start = insn.startRegister
+            val end = start + insn.registerCount - 1
+            "invoke-static/range {v$start .. v$end}, Lcom/autocat/morphe/smartlauncher/extension/ArchivedAppFilter;->getActivityList(Landroid/content/pm/LauncherApps;Ljava/lang/String;Landroid/os/UserHandle;)Ljava/util/List;"
         }
+
+        method.replaceInstruction(invokeIndex, smali)
     }
 }
