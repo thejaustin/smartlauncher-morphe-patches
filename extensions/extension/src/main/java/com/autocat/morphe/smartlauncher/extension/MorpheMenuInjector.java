@@ -8,6 +8,7 @@ import android.content.ContextWrapper;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Handler;
@@ -22,6 +23,7 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -36,8 +38,8 @@ public final class MorpheMenuInjector {
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
     private static final Handler MAIN_HANDLER = new Handler(Looper.getMainLooper());
 
-    private static String sLastPackageName = null;
-    private static Context sLastContext = null;
+    private static volatile String sLastPackageName = null;
+    private static volatile Context sLastContext = null;
     private static Method sPopupShowMethod = null;
 
     private MorpheMenuInjector() {}
@@ -96,43 +98,14 @@ public final class MorpheMenuInjector {
         }
 
         try {
+            // 1. Resolve Context
             Context context = null;
-            String packageName = null;
-
-            // 1. Extract context from popupLayerObj
             if (popupLayerObj != null) {
                 context = resolveContext(popupLayerObj);
             }
-
-            // 2. Extract target packageName from callerObj
-            if (callerObj != null) {
-                Class<?> clazz = callerObj.getClass();
-                while (clazz != null && clazz != Object.class && packageName == null) {
-                    for (Field f : clazz.getDeclaredFields()) {
-                        try {
-                            f.setAccessible(true);
-                            Object val = f.get(callerObj);
-                            if (val instanceof ComponentName) {
-                                packageName = ((ComponentName) val).getPackageName();
-                                break;
-                            } else if (val instanceof Intent) {
-                                Intent it = (Intent) val;
-                                if (it.getComponent() != null) {
-                                    packageName = it.getComponent().getPackageName();
-                                    break;
-                                } else if (it.getPackage() != null) {
-                                    packageName = it.getPackage();
-                                    break;
-                                }
-                            } else if (val instanceof String && ((String) val).contains(".")) {
-                                packageName = (String) val;
-                            }
-                        } catch (Throwable ignored) {}
-                    }
-                    clazz = clazz.getSuperclass();
-                }
+            if (context == null && callerObj != null) {
+                context = resolveContext(callerObj);
             }
-
             if (context == null) {
                 context = sLastContext;
             }
@@ -150,18 +123,17 @@ public final class MorpheMenuInjector {
                 sLastContext = context;
             }
 
-            if (packageName == null) {
-                packageName = sLastPackageName;
-            } else {
+            final Context finalContext = (context != null) ? context : sLastContext;
+
+            // 2. Extract target packageName from all available structures (items closures, popup, caller)
+            String packageName = extractPackageNameFromAll(popupLayerObj, items, callerObj, finalContext);
+            if (packageName != null) {
                 sLastPackageName = packageName;
+            } else {
+                packageName = sLastPackageName;
             }
 
-            final Context finalContext = context;
             final String finalPackageName = packageName;
-
-            if (finalContext == null || finalPackageName == null) {
-                return;
-            }
 
             // 3. Find sample item to clone reflection structures
             Object sampleItem = null;
@@ -192,15 +164,20 @@ public final class MorpheMenuInjector {
                 }
             }
 
-            // Check if app is currently archived
-            PackageManager pm = finalContext.getPackageManager();
-            ApplicationInfo appInfo = null;
-            try {
-                appInfo = pm.getApplicationInfo(finalPackageName, 0);
-            } catch (Throwable ignored) {}
+            // Determine if target app is currently archived
+            boolean isArchived = false;
+            if (finalContext != null && finalPackageName != null) {
+                try {
+                    PackageManager pm = finalContext.getPackageManager();
+                    ApplicationInfo appInfo = pm.getApplicationInfo(finalPackageName, 0);
+                    isArchived = ArchivedAppFilter.isAppArchived(appInfo);
+                } catch (Throwable ignored) {}
+            }
 
-            final boolean isArchived = (appInfo != null) && ArchivedAppFilter.isAppArchived(appInfo);
-            final String actionTitle = isArchived ? "Restore App" : "Archive App";
+            final boolean targetIsArchived = isArchived;
+            final String actionTitle = (finalPackageName != null)
+                    ? (targetIsArchived ? "Restore App" : "Archive App")
+                    : "Archive / Restore App";
 
             // 4. Resolve the Kotlin / SAM functional interface
             List<Class<?>> interfaceList = new ArrayList<>();
@@ -245,7 +222,12 @@ public final class MorpheMenuInjector {
                             if ("hashCode".equals(mName)) return System.identityHashCode(proxy);
                             if ("equals".equals(mName)) return proxy == (args != null && args.length > 0 ? args[0] : null);
 
-                            performArchiveOrRestoreAsync(finalContext, finalPackageName, isArchived);
+                            Context execCtx = (finalContext != null) ? finalContext : getForegroundActivity();
+                            if (finalPackageName != null) {
+                                performArchiveOrRestoreAsync(execCtx, finalPackageName, targetIsArchived);
+                            } else if (execCtx != null) {
+                                MorpheSettingsDialog.show(execCtx);
+                            }
                             return null;
                         }
                     }
@@ -278,19 +260,167 @@ public final class MorpheMenuInjector {
             }
 
             if (archiveItem != null) {
-                if (stringField != null) {
-                    try { stringField.set(archiveItem, actionTitle); } catch (Throwable ignored) {}
-                }
-                if (actionField != null) {
-                    try { actionField.set(archiveItem, clickProxy); } catch (Throwable ignored) {}
+                // Copy default styling attributes from sampleItem
+                for (Field f : itemClass.getDeclaredFields()) {
+                    try {
+                        f.setAccessible(true);
+                        if (CharSequence.class.isAssignableFrom(f.getType())) {
+                            f.set(archiveItem, actionTitle);
+                        } else if (isAssignableToAny(f.getType(), interfacesArray)) {
+                            f.set(archiveItem, clickProxy);
+                        } else {
+                            Object sampleVal = f.get(sampleItem);
+                            if (sampleVal != null) {
+                                f.set(archiveItem, sampleVal);
+                            }
+                        }
+                    } catch (Throwable ignored) {}
                 }
 
                 items.add(archiveItem);
-                Log.i(TAG, "Successfully injected " + actionTitle + " into popup menu for " + finalPackageName);
+                Log.i(TAG, "Successfully injected [" + actionTitle + "] into hold menu (package: " + finalPackageName + ")");
             }
         } catch (Throwable t) {
             Log.w(TAG, "Safe popup item injection catch: " + t.getMessage());
         }
+    }
+
+    /**
+     * Extracts the target application package name by comprehensively searching items, closures, and controllers.
+     */
+    public static String extractPackageNameFromAll(Object popupLayerObj, List<?> items, Object callerObj, Context context) {
+        String pkg = null;
+
+        // 1. Inspect all items in popup list (most direct source of closures)
+        if (items != null) {
+            for (Object item : items) {
+                if (item != null) {
+                    pkg = extractPackageName(item, 0);
+                    if (pkg != null && isInstalledPackage(context, pkg)) {
+                        return pkg;
+                    }
+                }
+            }
+        }
+
+        // 2. Inspect popupLayerObj (controller containing target view)
+        if (popupLayerObj != null) {
+            pkg = extractPackageName(popupLayerObj, 0);
+            if (pkg != null && isInstalledPackage(context, pkg)) {
+                return pkg;
+            }
+        }
+
+        // 3. Inspect callerObj
+        if (callerObj != null) {
+            pkg = extractPackageName(callerObj, 0);
+            if (pkg != null && isInstalledPackage(context, pkg)) {
+                return pkg;
+            }
+        }
+
+        if (pkg != null) return pkg;
+        return sLastPackageName;
+    }
+
+    private static boolean isInstalledPackage(Context context, String pkg) {
+        if (pkg == null || pkg.isEmpty() || !pkg.contains(".")) return false;
+        if ("android".equals(pkg) || "ginlemon.flowerfree".equals(pkg)) return false;
+        if (context != null) {
+            try {
+                context.getPackageManager().getApplicationInfo(pkg, 0);
+                return true;
+            } catch (Throwable ignored) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static String extractPackageName(Object obj, int depth) {
+        if (obj == null || depth > 4) return null;
+
+        if (obj instanceof ComponentName) {
+            return ((ComponentName) obj).getPackageName();
+        }
+        if (obj instanceof Intent) {
+            Intent it = (Intent) obj;
+            if (it.getComponent() != null) return it.getComponent().getPackageName();
+            if (it.getPackage() != null) return it.getPackage();
+            if (it.getData() != null) {
+                String pkg = extractPackageFromUri(it.getData());
+                if (pkg != null) return pkg;
+            }
+        }
+        if (obj instanceof Uri) {
+            String pkg = extractPackageFromUri((Uri) obj);
+            if (pkg != null) return pkg;
+        }
+        if (obj instanceof LauncherActivityInfo) {
+            return ((LauncherActivityInfo) obj).getApplicationInfo().packageName;
+        }
+        if (obj instanceof ApplicationInfo) {
+            return ((ApplicationInfo) obj).packageName;
+        }
+        if (obj instanceof PackageInfo) {
+            return ((PackageInfo) obj).packageName;
+        }
+        if (obj instanceof String) {
+            String s = (String) obj;
+            if (s.startsWith("package:")) return s.substring(8);
+            if (s.contains(".") && !s.contains(" ") && !s.contains("/") && !s.contains(":") && s.length() >= 3 && s.length() <= 100) {
+                return s;
+            }
+        }
+        if (obj instanceof Collection) {
+            for (Object elem : (Collection<?>) obj) {
+                String pkg = extractPackageName(elem, depth + 1);
+                if (pkg != null) return pkg;
+            }
+        }
+        if (obj instanceof Object[]) {
+            for (Object elem : (Object[]) obj) {
+                String pkg = extractPackageName(elem, depth + 1);
+                if (pkg != null) return pkg;
+            }
+        }
+
+        // Recursively inspect declared fields on the object
+        try {
+            Class<?> clazz = obj.getClass();
+            while (clazz != null && clazz != Object.class && !clazz.getName().startsWith("java.lang.")) {
+                for (Field f : clazz.getDeclaredFields()) {
+                    try {
+                        f.setAccessible(true);
+                        Object val = f.get(obj);
+                        if (val != null && val != obj) {
+                            String pkg = extractPackageName(val, depth + 1);
+                            if (pkg != null) return pkg;
+                        }
+                    } catch (Throwable ignored) {}
+                }
+                clazz = clazz.getSuperclass();
+            }
+        } catch (Throwable ignored) {}
+
+        return null;
+    }
+
+    private static String extractPackageFromUri(Uri uri) {
+        if (uri == null) return null;
+        String scheme = uri.getScheme();
+        if ("package".equalsIgnoreCase(scheme)) {
+            return uri.getSchemeSpecificPart();
+        }
+        if (uri.isHierarchical()) {
+            String id = uri.getQueryParameter("id");
+            if (id != null && id.contains(".")) return id;
+        }
+        String str = uri.toString();
+        if (str.startsWith("package:")) {
+            return str.substring(8);
+        }
+        return null;
     }
 
     private static boolean isAssignableToAny(Class<?> target, Class<?>[] candidates) {
