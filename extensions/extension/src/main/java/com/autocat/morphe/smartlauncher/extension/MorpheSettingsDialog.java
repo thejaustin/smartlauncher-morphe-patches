@@ -11,10 +11,10 @@ import android.content.res.TypedArray;
 import android.graphics.Typeface;
 import android.view.Gravity;
 import android.view.View;
+import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
-import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -51,7 +51,7 @@ public final class MorpheSettingsDialog {
             // ── App Drawer ─────────────────────────────────────────────
             root.addView(sectionHeader(context, "App Drawer", colorSecondary, dp16, dp12, dp4));
 
-            Switch swHide = toggleRow(context, root,
+            CheckBox swHide = toggleRow(context, root,
                     "Hide Archived Apps",
                     "Removes archived apps from the app drawer so they stay out of sight.",
                     MorphePreferences.isHideArchivedEnabled(context),
@@ -69,7 +69,7 @@ public final class MorpheSettingsDialog {
             // ── App Archiving ───────────────────────────────────────────
             root.addView(sectionHeader(context, "App Archiving", colorSecondary, dp16, dp12, dp4));
 
-            Switch swNative = toggleRow(context, root,
+            CheckBox swNative = toggleRow(context, root,
                     "Native Archiving",
                     "Uses Android 15+ system PackageInstaller APIs. No extra permissions needed.",
                     MorphePreferences.isNativeEnabled(context),
@@ -81,7 +81,7 @@ public final class MorpheSettingsDialog {
                 }
             });
 
-            Switch swShizuku = toggleRow(context, root,
+            CheckBox swShizuku = toggleRow(context, root,
                     "Shizuku Archiving",
                     "Uses Shizuku for privileged archiving. Requires Shizuku to be installed and running.",
                     MorphePreferences.isShizukuEnabled(context),
@@ -134,11 +134,11 @@ public final class MorpheSettingsDialog {
         return tv;
     }
 
-    private static Switch toggleRow(Context context, LinearLayout parent,
-                                    String title, String description,
-                                    boolean checked,
-                                    int colorPrimary, int colorSecondary,
-                                    int padH, int padV, int dp4) {
+    private static CheckBox toggleRow(Context context, LinearLayout parent,
+                                      String title, String description,
+                                      boolean checked,
+                                      int colorPrimary, int colorSecondary,
+                                      int padH, int padV, int dp4) {
         LinearLayout row = new LinearLayout(context);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setPadding(padH, padV, padH, padV);
@@ -165,17 +165,17 @@ public final class MorpheSettingsDialog {
 
         row.addView(textCol);
 
-        Switch sw = new Switch(context);
-        sw.setChecked(checked);
-        LinearLayout.LayoutParams swParams = new LinearLayout.LayoutParams(
+        CheckBox cb = new CheckBox(context);
+        cb.setChecked(checked);
+        LinearLayout.LayoutParams cbParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
-        swParams.leftMargin = padV;
-        sw.setLayoutParams(swParams);
-        row.addView(sw);
+        cbParams.leftMargin = padV;
+        cb.setLayoutParams(cbParams);
+        row.addView(cb);
 
         parent.addView(row);
-        return sw;
+        return cb;
     }
 
     private static View divider(Context context, int padH, int dp4) {
