@@ -1,6 +1,5 @@
 package com.autocat.morphe.smartlauncher.extension;
 
-import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -19,6 +18,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 public final class MorpheSettingsDialog {
@@ -32,11 +33,6 @@ public final class MorpheSettingsDialog {
             final int colorPrimary = ta.getColor(0, 0xFF212121);
             final int colorSecondary = ta.getColor(1, 0xFF757575);
             ta.recycle();
-
-            int[] accentAttr = {android.R.attr.colorAccent};
-            TypedArray ta2 = context.getTheme().obtainStyledAttributes(accentAttr);
-            final int colorAccent = ta2.getColor(0, 0xFF4CAF50);
-            ta2.recycle();
 
             float d = context.getResources().getDisplayMetrics().density;
             int dp4 = Math.round(4 * d);
@@ -83,7 +79,7 @@ public final class MorpheSettingsDialog {
 
             CheckBox swShizuku = toggleRow(context, root,
                     "Shizuku Archiving",
-                    "Uses Shizuku for privileged archiving. Requires Shizuku to be installed and running.",
+                    "Uses Shizuku for privileged archiving. Works across Android 14/15/16.",
                     MorphePreferences.isShizukuEnabled(context),
                     colorPrimary, colorSecondary, dp16, dp8, dp4);
             swShizuku.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
@@ -92,6 +88,37 @@ public final class MorpheSettingsDialog {
                     MorphePreferences.setShizukuEnabled(context, checked);
                 }
             });
+
+            // Shizuku Service Status Row
+            ShizukuArchiveHelper.Status status = ShizukuArchiveHelper.getStatus();
+            String statusText;
+            int statusColor;
+            if (status == ShizukuArchiveHelper.Status.ACTIVE) {
+                statusText = "⚡ Shizuku: Running & Authorized";
+                statusColor = 0xFF2E7D32; // Green
+            } else if (status == ShizukuArchiveHelper.Status.PERMISSION_REQUIRED) {
+                statusText = "⚠️ Shizuku: Running (Tap to authorize)";
+                statusColor = 0xFFE65100; // Orange
+            } else {
+                statusText = "🔌 Shizuku: Not Running";
+                statusColor = colorSecondary;
+            }
+
+            TextView tvStatus = new TextView(context);
+            tvStatus.setText(statusText);
+            tvStatus.setTextSize(13f);
+            tvStatus.setTextColor(statusColor);
+            tvStatus.setPadding(dp16, dp8, dp16, dp8);
+            if (status == ShizukuArchiveHelper.Status.PERMISSION_REQUIRED) {
+                tvStatus.setTypeface(null, Typeface.BOLD);
+                tvStatus.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        ShizukuArchiveHelper.requestPermissionWithFeedback(context);
+                    }
+                });
+            }
+            root.addView(tvStatus);
 
             ScrollView scrollView = new ScrollView(context);
             scrollView.addView(root);
@@ -192,30 +219,54 @@ public final class MorpheSettingsDialog {
         return v;
     }
 
+    private static class AppEntry {
+        final String packageName;
+        final String label;
+
+        AppEntry(String packageName, String label) {
+            this.packageName = packageName;
+            this.label = label;
+        }
+    }
+
     private static void showAppArchivePicker(final Context context, final boolean unarchiveMode) {
         try {
             PackageManager pm = context.getPackageManager();
             List<PackageInfo> installed = pm.getInstalledPackages(0);
-            final List<String> packageNames = new ArrayList<>();
-            final List<String> appLabels = new ArrayList<>();
+            List<AppEntry> entries = new ArrayList<>();
 
             for (PackageInfo pi : installed) {
                 if (pi.applicationInfo != null
                         && (pi.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) == 0) {
-                    boolean isArchived = (pi.applicationInfo.flags & 0x40000000) != 0;
+                    boolean isArchived = ArchivedAppFilter.isAppArchived(pi.applicationInfo);
                     if (unarchiveMode == isArchived) {
-                        packageNames.add(pi.packageName);
                         CharSequence label = pi.applicationInfo.loadLabel(pm);
-                        appLabels.add(label != null ? label.toString() : pi.packageName);
+                        String labelStr = label != null ? label.toString() : pi.packageName;
+                        entries.add(new AppEntry(pi.packageName, labelStr));
                     }
                 }
             }
 
-            if (appLabels.isEmpty()) {
+            if (entries.isEmpty()) {
                 Toast.makeText(context,
-                        unarchiveMode ? "No archived apps found" : "No user apps available",
+                        unarchiveMode ? "No archived apps found" : "No user apps available to archive",
                         Toast.LENGTH_SHORT).show();
                 return;
+            }
+
+            // Sort alphabetically by app name
+            Collections.sort(entries, new Comparator<AppEntry>() {
+                @Override
+                public int compare(AppEntry o1, AppEntry o2) {
+                    return o1.label.compareToIgnoreCase(o2.label);
+                }
+            });
+
+            final List<String> packageNames = new ArrayList<>(entries.size());
+            final List<String> appLabels = new ArrayList<>(entries.size());
+            for (AppEntry e : entries) {
+                packageNames.add(e.packageName);
+                appLabels.add(e.label);
             }
 
             AlertDialog.Builder picker = new AlertDialog.Builder(context);
@@ -225,24 +276,7 @@ public final class MorpheSettingsDialog {
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
                             String pkg = packageNames.get(which);
-                            String name = appLabels.get(which);
-                            if (unarchiveMode) {
-                                boolean ok = ShizukuArchiveHelper.unarchivePackage(pkg);
-                                if (!ok && context instanceof Activity) {
-                                    ok = NativeArchiveHelper.unarchivePackage((Activity) context, pkg);
-                                }
-                                Toast.makeText(context,
-                                        ok ? "Restoring " + name + "…" : "Failed to restore " + name,
-                                        Toast.LENGTH_SHORT).show();
-                            } else {
-                                boolean ok = ShizukuArchiveHelper.archivePackage(pkg);
-                                if (!ok && context instanceof Activity) {
-                                    ok = NativeArchiveHelper.archivePackage((Activity) context, pkg);
-                                }
-                                Toast.makeText(context,
-                                        ok ? "Archiving " + name + "…" : "Failed to archive " + name,
-                                        Toast.LENGTH_SHORT).show();
-                            }
+                            MorpheMenuInjector.performArchiveOrRestoreAsync(context, pkg, unarchiveMode);
                         }
                     });
             picker.setNegativeButton("Cancel", null);

@@ -1,6 +1,5 @@
 package com.autocat.morphe.smartlauncher.extension;
 
-import android.app.Activity;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
@@ -9,14 +8,15 @@ import android.content.pm.LauncherApps;
 import android.content.pm.PackageInstaller;
 import android.os.Build;
 import android.os.Process;
+import android.os.UserHandle;
 import android.util.Log;
 import android.widget.Toast;
 
 import java.lang.reflect.Method;
 
 /**
- * Real implementation of native app archiving and unarchiving via the
- * public {@code PackageInstaller.requestArchive} & {@code PackageInstaller.requestUnarchive} APIs
+ * Pure-reflection implementation of native app archiving and unarchiving via
+ * {@code PackageInstaller.requestArchive} & {@code PackageInstaller.requestUnarchive} APIs
  * (Android 15 / API 35+ / Samsung One UI 7).
  */
 @SuppressWarnings("unused")
@@ -51,7 +51,7 @@ public class NativeArchiveHelper {
                 Method unarchiveMethod = installer.getClass().getMethod("requestUnarchive", String.class, IntentSender.class);
                 unarchiveMethod.invoke(installer, packageName, statusReceiver);
                 Log.i(TAG, "Native unarchive requested for " + packageName);
-                safeToast(context, "Unarchiving " + packageName + "...");
+                safeToast(context, "Unarchiving " + packageName + "…");
                 return true;
             }
         } catch (Throwable t) {
@@ -64,12 +64,12 @@ public class NativeArchiveHelper {
                 Method unarchiveAppMethod = launcherApps.getClass().getMethod(
                     "unarchiveApp",
                     String.class,
-                    Process.myUserHandle().getClass(),
+                    UserHandle.class,
                     IntentSender.class
                 );
                 unarchiveAppMethod.invoke(launcherApps, packageName, Process.myUserHandle(), statusReceiver);
                 Log.i(TAG, "LauncherApps.unarchiveApp invoked for " + packageName);
-                safeToast(context, "Unarchiving " + packageName + "...");
+                safeToast(context, "Unarchiving " + packageName + "…");
                 return true;
             }
         } catch (Throwable t) {
@@ -93,9 +93,10 @@ public class NativeArchiveHelper {
         try {
             PackageInstaller installer = context.getPackageManager().getPackageInstaller();
             if (installer != null) {
-                installer.requestArchive(packageName, statusReceiver);
+                Method archiveMethod = installer.getClass().getMethod("requestArchive", String.class, IntentSender.class);
+                archiveMethod.invoke(installer, packageName, statusReceiver);
                 Log.i(TAG, "Native archive requested for " + packageName);
-                safeToast(context, "Archiving " + packageName + "...");
+                safeToast(context, "Archiving " + packageName + "…");
                 return true;
             }
         } catch (Throwable t) {
@@ -108,12 +109,12 @@ public class NativeArchiveHelper {
                 Method archiveAppMethod = launcherApps.getClass().getMethod(
                     "archiveApp",
                     String.class,
-                    Process.myUserHandle().getClass(),
+                    UserHandle.class,
                     IntentSender.class
                 );
                 archiveAppMethod.invoke(launcherApps, packageName, Process.myUserHandle(), statusReceiver);
                 Log.i(TAG, "LauncherApps.archiveApp invoked for " + packageName);
-                safeToast(context, "Archiving " + packageName + "...");
+                safeToast(context, "Archiving " + packageName + "…");
                 return true;
             }
         } catch (Throwable t) {
@@ -146,7 +147,6 @@ public class NativeArchiveHelper {
     private static void safeToast(Context context, String message) {
         try {
             Toast.makeText(context.getApplicationContext(), message, Toast.LENGTH_SHORT).show();
-        } catch (Throwable ignored) {
-        }
+        } catch (Throwable ignored) {}
     }
 }
