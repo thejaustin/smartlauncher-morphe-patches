@@ -143,38 +143,6 @@ public class ShizukuArchiveHelper {
         return false;
     }
 
-    public static void archiveAppAsync(final Context context, final String packageName, final Runnable onComplete) {
-        if (context == null || packageName == null || packageName.isEmpty()) {
-            return;
-        }
-
-        if (!isShizukuAlive()) {
-            postToast(context, "Shizuku is not running");
-            return;
-        }
-
-        if (!hasPermission()) {
-            postToast(context, "Requesting Shizuku permission…");
-            requestShizukuPermission(SHIZUKU_REQ_CODE);
-            return;
-        }
-
-        EXECUTOR.execute(new Runnable() {
-            @Override
-            public void run() {
-                boolean success = archivePackage(packageName);
-                if (success) {
-                    postToast(context, "Archived " + packageName);
-                } else {
-                    postToast(context, "Failed to archive " + packageName);
-                }
-                if (onComplete != null) {
-                    MAIN_HANDLER.post(onComplete);
-                }
-            }
-        });
-    }
-
     public static void postToast(final Context context, final String message) {
         if (context == null || message == null) return;
         MAIN_HANDLER.post(new Runnable() {

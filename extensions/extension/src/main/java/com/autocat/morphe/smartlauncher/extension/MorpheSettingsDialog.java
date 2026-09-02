@@ -8,6 +8,7 @@ import android.content.DialogInterface;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.content.res.TypedArray;
 import android.graphics.Typeface;
 import android.util.Log;
@@ -263,7 +264,9 @@ public final class MorpheSettingsDialog {
     private static void showAppArchivePicker(final Context context, final boolean unarchiveMode) {
         try {
             PackageManager pm = context.getPackageManager();
-            List<PackageInfo> installed = pm.getInstalledPackages(0);
+            // MATCH_ARCHIVED_PACKAGES (0x8000) is required on API 35+ for archived packages to appear.
+            int pmFlags = (Build.VERSION.SDK_INT >= 35) ? 0x00008000 : 0;
+            List<PackageInfo> installed = pm.getInstalledPackages(pmFlags);
             List<AppEntry> entries = new ArrayList<>();
 
             for (PackageInfo pi : installed) {

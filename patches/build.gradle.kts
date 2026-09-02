@@ -1,5 +1,5 @@
 group = "com.autocat.morphe.smartlauncher"
-version = "1.8.3"
+version = "1.8.4"
 
 base {
     archivesName.set("smartlauncher-morphe-patches")
