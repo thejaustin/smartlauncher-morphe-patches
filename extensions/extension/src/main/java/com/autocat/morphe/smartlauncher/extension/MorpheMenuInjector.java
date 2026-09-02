@@ -163,7 +163,7 @@ public final class MorpheMenuInjector {
             PackageManager pm = finalContext.getPackageManager();
             ApplicationInfo appInfo = pm.getApplicationInfo(finalPackageName, 0);
             final boolean isArchived = (appInfo.flags & 0x40000000) != 0;
-            final String actionTitle = isArchived ? "♻️ Restore / Unarchive" : "📦 Archive App";
+            final String actionTitle = isArchived ? "Restore App" : "Archive App";
 
             // 4. Resolve the Kotlin Function1 interface class (obfuscated as e.g. "b34").
             // Prefer the runtime type of the existing action field so we stay correct
@@ -200,13 +200,13 @@ public final class MorpheMenuInjector {
                                     if (!ok) {
                                         ok = NativeArchiveHelper.unarchivePackage(finalContext, finalPackageName);
                                     }
-                                    Toast.makeText(finalContext, ok ? "Unarchiving " + finalPackageName + "..." : "Failed to unarchive app", Toast.LENGTH_SHORT).show();
+                                    Toast.makeText(finalContext, ok ? "Restoring…" : "Failed to restore app", Toast.LENGTH_SHORT).show();
                                 } else {
                                     ok = ShizukuArchiveHelper.archivePackage(finalPackageName);
                                     if (!ok) {
                                         ok = NativeArchiveHelper.archivePackage(finalContext, finalPackageName);
                                     }
-                                    Toast.makeText(finalContext, ok ? "Archiving " + finalPackageName + "..." : "Failed to archive app", Toast.LENGTH_SHORT).show();
+                                    Toast.makeText(finalContext, ok ? "Archiving…" : "Failed to archive app", Toast.LENGTH_SHORT).show();
                                 }
                                 return null;
                             }
@@ -271,36 +271,36 @@ public final class MorpheMenuInjector {
             builder.setTitle("📦 " + appName);
 
             if (isArchived) {
-                builder.setMessage("This application is currently archived. Choose an action:");
-                builder.setPositiveButton("♻️ Restore / Unarchive", new DialogInterface.OnClickListener() {
+                builder.setMessage(appName + " is archived. Restore it to use it again, or delete it permanently.");
+                builder.setPositiveButton("Restore App", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         boolean ok = ShizukuArchiveHelper.unarchivePackage(packageName);
                         if (!ok) {
                             ok = NativeArchiveHelper.unarchivePackage(context, packageName);
                         }
-                        Toast.makeText(context, ok ? "Unarchiving " + appName + "..." : "Failed to unarchive", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(context, ok ? "Restoring " + appName + "…" : "Failed to restore", Toast.LENGTH_SHORT).show();
                     }
                 });
-                builder.setNeutralButton("🗑️ Delete Completely", new DialogInterface.OnClickListener() {
+                builder.setNeutralButton("Delete App", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         context.startActivity(uninstallIntent);
                     }
                 });
             } else {
-                builder.setMessage("Choose an action for " + appName + ":");
-                builder.setPositiveButton("📦 Archive App (Save Space)", new DialogInterface.OnClickListener() {
+                builder.setMessage("Archive " + appName + " to free up space while keeping your data, or uninstall it completely.");
+                builder.setPositiveButton("Archive App", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         boolean ok = ShizukuArchiveHelper.archivePackage(packageName);
                         if (!ok) {
                             ok = NativeArchiveHelper.archivePackage(context, packageName);
                         }
-                        Toast.makeText(context, ok ? "Archiving " + appName + "..." : "Failed to archive", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(context, ok ? "Archiving " + appName + "…" : "Failed to archive", Toast.LENGTH_SHORT).show();
                     }
                 });
-                builder.setNeutralButton("🗑️ Uninstall", new DialogInterface.OnClickListener() {
+                builder.setNeutralButton("Uninstall", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         context.startActivity(uninstallIntent);
