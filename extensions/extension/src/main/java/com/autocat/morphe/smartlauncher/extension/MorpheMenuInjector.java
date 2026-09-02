@@ -12,6 +12,7 @@ import android.content.pm.LauncherActivityInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -168,11 +169,8 @@ public final class MorpheMenuInjector {
             // Determine if target app is currently archived
             boolean isArchived = false;
             if (finalContext != null && finalPackageName != null) {
-                try {
-                    PackageManager pm = finalContext.getPackageManager();
-                    ApplicationInfo appInfo = pm.getApplicationInfo(finalPackageName, 0);
-                    isArchived = ArchivedAppFilter.isAppArchived(appInfo);
-                } catch (Throwable ignored) {}
+                ApplicationInfo appInfo = getAppInfoSafe(finalContext.getPackageManager(), finalPackageName);
+                if (appInfo != null) isArchived = ArchivedAppFilter.isAppArchived(appInfo);
             }
 
             final boolean targetIsArchived = isArchived;
@@ -324,16 +322,23 @@ public final class MorpheMenuInjector {
         return sLastPackageName;
     }
 
+    // On API 35+, archived packages are excluded from getApplicationInfo(pkg, 0).
+    // MATCH_ARCHIVED_PACKAGES (0x8000) must be passed to see them.
+    private static final int PM_FLAGS = Build.VERSION.SDK_INT >= 35 ? 0x00008000 : 0;
+
+    static ApplicationInfo getAppInfoSafe(PackageManager pm, String pkg) {
+        try {
+            return pm.getApplicationInfo(pkg, PM_FLAGS);
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
     private static boolean isInstalledPackage(Context context, String pkg) {
         if (pkg == null || pkg.isEmpty() || !pkg.contains(".")) return false;
         if ("android".equals(pkg) || "ginlemon.flowerfree".equals(pkg)) return false;
         if (context != null) {
-            try {
-                context.getPackageManager().getApplicationInfo(pkg, 0);
-                return true;
-            } catch (Throwable ignored) {
-                return false;
-            }
+            return getAppInfoSafe(context.getPackageManager(), pkg) != null;
         }
         return true;
     }
@@ -444,11 +449,11 @@ public final class MorpheMenuInjector {
 
         PackageManager pm = context.getPackageManager();
         String appLabel = packageName;
-        try {
-            ApplicationInfo ai = pm.getApplicationInfo(packageName, 0);
+        ApplicationInfo ai = getAppInfoSafe(pm, packageName);
+        if (ai != null) {
             CharSequence label = ai.loadLabel(pm);
             if (label != null) appLabel = label.toString();
-        } catch (Throwable ignored) {}
+        }
 
         final String finalLabel = appLabel;
         final String startingToast = (isCurrentlyArchived ? "Restoring " : "Archiving ") + finalLabel + "…";
@@ -518,7 +523,11 @@ public final class MorpheMenuInjector {
             }
 
             PackageManager pm = context.getPackageManager();
-            ApplicationInfo appInfo = pm.getApplicationInfo(packageName, 0);
+            ApplicationInfo appInfo = getAppInfoSafe(pm, packageName);
+            if (appInfo == null) {
+                context.startActivity(uninstallIntent);
+                return;
+            }
             CharSequence label = appInfo.loadLabel(pm);
             final String appName = label != null ? label.toString() : packageName;
             final boolean isArchived = ArchivedAppFilter.isAppArchived(appInfo);
