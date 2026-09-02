@@ -1,8 +1,10 @@
 package com.autocat.morphe.smartlauncher.extension;
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.ContextWrapper;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
@@ -21,6 +23,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -98,23 +101,7 @@ public final class MorpheMenuInjector {
 
             // 1. Extract context from popupLayerObj
             if (popupLayerObj != null) {
-                Class<?> clazz = popupLayerObj.getClass();
-                while (clazz != null && clazz != Object.class && context == null) {
-                    for (Field f : clazz.getDeclaredFields()) {
-                        try {
-                            f.setAccessible(true);
-                            Object val = f.get(popupLayerObj);
-                            if (val instanceof View) {
-                                context = ((View) val).getContext();
-                                break;
-                            } else if (val instanceof Context) {
-                                context = (Context) val;
-                                break;
-                            }
-                        } catch (Throwable ignored) {}
-                    }
-                    clazz = clazz.getSuperclass();
-                }
+                context = resolveContext(popupLayerObj);
             }
 
             // 2. Extract target packageName from callerObj
@@ -148,6 +135,9 @@ public final class MorpheMenuInjector {
 
             if (context == null) {
                 context = sLastContext;
+            }
+            if (context == null) {
+                context = getForegroundActivity();
             }
             if (context == null) {
                 try {
@@ -457,9 +447,121 @@ public final class MorpheMenuInjector {
     }
 
     /**
-     * Called when Smart Launcher preferences / experimental menu is loaded.
+     * Resolves an Activity or Context dynamically from an arbitrary object.
      */
+    public static Context resolveContext(Object obj) {
+        if (obj == null) return null;
+        if (obj instanceof Activity) {
+            return (Activity) obj;
+        }
+        if (obj instanceof View) {
+            Context ctx = ((View) obj).getContext();
+            Activity act = findActivity(ctx);
+            return (act != null) ? act : ctx;
+        }
+        if (obj instanceof Context) {
+            Activity act = findActivity((Context) obj);
+            return (act != null) ? act : (Context) obj;
+        }
+        // Inspect fields on object (listener, closure, lambda, etc.)
+        try {
+            Class<?> clazz = obj.getClass();
+            while (clazz != null && clazz != Object.class) {
+                for (Field f : clazz.getDeclaredFields()) {
+                    try {
+                        f.setAccessible(true);
+                        Object val = f.get(obj);
+                        if (val instanceof Activity) {
+                            return (Activity) val;
+                        } else if (val instanceof Context) {
+                            Activity act = findActivity((Context) val);
+                            return (act != null) ? act : (Context) val;
+                        } else if (val instanceof View) {
+                            Context ctx = ((View) val).getContext();
+                            Activity act = findActivity(ctx);
+                            return (act != null) ? act : ctx;
+                        }
+                    } catch (Throwable ignored) {}
+                }
+                clazz = clazz.getSuperclass();
+            }
+        } catch (Throwable ignored) {}
+        return null;
+    }
+
+    public static Activity findActivity(Context ctx) {
+        Context current = ctx;
+        while (current instanceof ContextWrapper) {
+            if (current instanceof Activity) {
+                return (Activity) current;
+            }
+            current = ((ContextWrapper) current).getBaseContext();
+        }
+        return null;
+    }
+
+    public static Activity getForegroundActivity() {
+        try {
+            Class<?> atClass = Class.forName("android.app.ActivityThread");
+            Method currentAtMethod = atClass.getMethod("currentActivityThread");
+            Object at = currentAtMethod.invoke(null);
+            if (at != null) {
+                Field activitiesField = atClass.getDeclaredField("mActivities");
+                activitiesField.setAccessible(true);
+                Object activities = activitiesField.get(at);
+                if (activities instanceof Map) {
+                    for (Object record : ((Map<?, ?>) activities).values()) {
+                        Field activityField = record.getClass().getDeclaredField("activity");
+                        activityField.setAccessible(true);
+                        Activity act = (Activity) activityField.get(record);
+                        if (act != null && !act.isFinishing() && !act.isDestroyed()) {
+                            Field pausedField = record.getClass().getDeclaredField("paused");
+                            pausedField.setAccessible(true);
+                            boolean paused = pausedField.getBoolean(record);
+                            if (!paused) {
+                                return act;
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+        return null;
+    }
+
+    /**
+     * Entry point for Morphe settings called by patched Dev options / Experimental features.
+     */
+    public static void openMorpheSettings(Object obj1, Object obj2) {
+        Context ctx = resolveContext(obj1);
+        if (ctx == null) {
+            ctx = resolveContext(obj2);
+        }
+        openMorpheSettings(ctx);
+    }
+
+    public static void openMorpheSettings(Object obj) {
+        Context ctx = resolveContext(obj);
+        openMorpheSettings(ctx);
+    }
+
     public static void openMorpheSettings(Context context) {
-        MorpheSettingsDialog.show(context);
+        if (context == null) {
+            context = getForegroundActivity();
+        }
+        if (context == null) {
+            try {
+                Class<?> atClass = Class.forName("android.app.ActivityThread");
+                Method currentAppMethod = atClass.getMethod("currentApplication");
+                context = (Context) currentAppMethod.invoke(null);
+            } catch (Throwable ignored) {}
+        }
+        if (context != null) {
+            MorpheSettingsDialog.show(context);
+        }
+    }
+
+    public static void openMorpheSettings() {
+        openMorpheSettings((Context) null);
     }
 }

@@ -1,13 +1,17 @@
 package com.autocat.morphe.smartlauncher.extension;
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.ContextWrapper;
 import android.content.DialogInterface;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.res.TypedArray;
 import android.graphics.Typeface;
+import android.util.Log;
+import android.view.ContextThemeWrapper;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.CheckBox;
@@ -24,68 +28,92 @@ import java.util.List;
 
 public final class MorpheSettingsDialog {
 
+    private static final String TAG = "MorpheSettingsDialog";
+
     private MorpheSettingsDialog() {}
 
     public static void show(final Context context) {
+        if (context == null) return;
         try {
-            int[] colorAttrs = {android.R.attr.textColorPrimary, android.R.attr.textColorSecondary};
-            TypedArray ta = context.getTheme().obtainStyledAttributes(colorAttrs);
-            final int colorPrimary = ta.getColor(0, 0xFF212121);
-            final int colorSecondary = ta.getColor(1, 0xFF757575);
-            ta.recycle();
+            // 1. Resolve host Activity
+            Activity activity = MorpheMenuInjector.findActivity(context);
+            if (activity == null) {
+                activity = MorpheMenuInjector.getForegroundActivity();
+            }
 
-            float d = context.getResources().getDisplayMetrics().density;
+            if (activity != null && (activity.isFinishing() || activity.isDestroyed())) {
+                Log.w(TAG, "Host activity is finishing or destroyed; skipping dialog");
+                return;
+            }
+
+            final Context baseContext = (activity != null) ? activity : context;
+            final Context themedContext = new ContextThemeWrapper(baseContext, android.R.style.Theme_DeviceDefault_Dialog_Alert);
+
+            // 2. Resolve theme colors safely
+            int colorPrimary = 0xFF212121;
+            int colorSecondary = 0xFF757575;
+            int colorAccent = 0xFF4CAF50;
+            try {
+                int[] colorAttrs = {android.R.attr.textColorPrimary, android.R.attr.textColorSecondary, android.R.attr.colorAccent};
+                TypedArray ta = themedContext.obtainStyledAttributes(colorAttrs);
+                colorPrimary = ta.getColor(0, 0xFF212121);
+                colorSecondary = ta.getColor(1, 0xFF757575);
+                colorAccent = ta.getColor(2, 0xFF4CAF50);
+                ta.recycle();
+            } catch (Throwable ignored) {}
+
+            float d = themedContext.getResources().getDisplayMetrics().density;
             int dp4 = Math.round(4 * d);
             int dp8 = Math.round(8 * d);
             int dp12 = Math.round(12 * d);
             int dp16 = Math.round(16 * d);
 
-            LinearLayout root = new LinearLayout(context);
+            LinearLayout root = new LinearLayout(themedContext);
             root.setOrientation(LinearLayout.VERTICAL);
             root.setPadding(0, dp8, 0, dp16);
 
             // ── App Drawer ─────────────────────────────────────────────
-            root.addView(sectionHeader(context, "App Drawer", colorSecondary, dp16, dp12, dp4));
+            root.addView(sectionHeader(themedContext, "App Drawer", colorSecondary, dp16, dp12, dp4));
 
-            CheckBox swHide = toggleRow(context, root,
+            CheckBox swHide = toggleRow(themedContext, root,
                     "Hide Archived Apps",
                     "Removes archived apps from the app drawer so they stay out of sight.",
-                    MorphePreferences.isHideArchivedEnabled(context),
+                    MorphePreferences.isHideArchivedEnabled(themedContext),
                     colorPrimary, colorSecondary, dp16, dp8, dp4);
             swHide.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
                 public void onCheckedChanged(CompoundButton b, boolean checked) {
-                    MorphePreferences.setHideArchivedEnabled(context, checked);
+                    MorphePreferences.setHideArchivedEnabled(themedContext, checked);
                     ArchivedAppFilter.setFilterEnabled(checked);
                 }
             });
 
-            root.addView(divider(context, dp16, dp4));
+            root.addView(divider(themedContext, dp16, dp4));
 
             // ── App Archiving ───────────────────────────────────────────
-            root.addView(sectionHeader(context, "App Archiving", colorSecondary, dp16, dp12, dp4));
+            root.addView(sectionHeader(themedContext, "App Archiving", colorSecondary, dp16, dp12, dp4));
 
-            CheckBox swNative = toggleRow(context, root,
+            CheckBox swNative = toggleRow(themedContext, root,
                     "Native Archiving",
                     "Uses Android 15+ system PackageInstaller APIs. No extra permissions needed.",
-                    MorphePreferences.isNativeEnabled(context),
+                    MorphePreferences.isNativeEnabled(themedContext),
                     colorPrimary, colorSecondary, dp16, dp8, dp4);
             swNative.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
                 public void onCheckedChanged(CompoundButton b, boolean checked) {
-                    MorphePreferences.setNativeEnabled(context, checked);
+                    MorphePreferences.setNativeEnabled(themedContext, checked);
                 }
             });
 
-            CheckBox swShizuku = toggleRow(context, root,
+            CheckBox swShizuku = toggleRow(themedContext, root,
                     "Shizuku Archiving",
                     "Uses Shizuku for privileged archiving. Works across Android 14/15/16.",
-                    MorphePreferences.isShizukuEnabled(context),
+                    MorphePreferences.isShizukuEnabled(themedContext),
                     colorPrimary, colorSecondary, dp16, dp8, dp4);
             swShizuku.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
                 public void onCheckedChanged(CompoundButton b, boolean checked) {
-                    MorphePreferences.setShizukuEnabled(context, checked);
+                    MorphePreferences.setShizukuEnabled(themedContext, checked);
                 }
             });
 
@@ -104,7 +132,7 @@ public final class MorpheSettingsDialog {
                 statusColor = colorSecondary;
             }
 
-            TextView tvStatus = new TextView(context);
+            TextView tvStatus = new TextView(themedContext);
             tvStatus.setText(statusText);
             tvStatus.setTextSize(13f);
             tvStatus.setTextColor(statusColor);
@@ -114,30 +142,30 @@ public final class MorpheSettingsDialog {
                 tvStatus.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        ShizukuArchiveHelper.requestPermissionWithFeedback(context);
+                        ShizukuArchiveHelper.requestPermissionWithFeedback(themedContext);
                     }
                 });
             }
             root.addView(tvStatus);
 
-            ScrollView scrollView = new ScrollView(context);
+            ScrollView scrollView = new ScrollView(themedContext);
             scrollView.addView(root);
 
-            AlertDialog.Builder builder = new AlertDialog.Builder(context);
+            AlertDialog.Builder builder = new AlertDialog.Builder(themedContext);
             builder.setTitle("Morphe Settings");
             builder.setView(scrollView);
 
             builder.setPositiveButton("Archive App…", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
-                    showAppArchivePicker(context, false);
+                    showAppArchivePicker(themedContext, false);
                 }
             });
 
             builder.setNeutralButton("Restore App…", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
-                    showAppArchivePicker(context, true);
+                    showAppArchivePicker(themedContext, true);
                 }
             });
 
@@ -145,7 +173,10 @@ public final class MorpheSettingsDialog {
             builder.create().show();
 
         } catch (Throwable t) {
-            Toast.makeText(context, "Morphe Settings error: " + t.getMessage(), Toast.LENGTH_LONG).show();
+            Log.e(TAG, "Error displaying MorpheSettingsDialog", t);
+            try {
+                Toast.makeText(context.getApplicationContext(), "Morphe Settings error: " + t.getMessage(), Toast.LENGTH_LONG).show();
+            } catch (Throwable ignored) {}
         }
     }
 
