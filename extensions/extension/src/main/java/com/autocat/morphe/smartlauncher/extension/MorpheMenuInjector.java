@@ -467,21 +467,20 @@ public final class MorpheMenuInjector {
                 boolean nativeEnabled = MorphePreferences.isNativeEnabled(context);
 
                 // 1. Try Shizuku privileged archiving if enabled
-                if (shizukuEnabled) {
-                    if (ShizukuArchiveHelper.isShizukuAlive()) {
-                        if (ShizukuArchiveHelper.hasPermission()) {
-                            success = isCurrentlyArchived
-                                    ? ShizukuArchiveHelper.unarchivePackage(packageName)
-                                    : ShizukuArchiveHelper.archivePackage(packageName);
-                        } else {
-                            MAIN_HANDLER.post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    ShizukuArchiveHelper.requestPermissionWithFeedback(context);
-                                }
-                            });
-                            return;
-                        }
+                if (shizukuEnabled && ShizukuArchiveHelper.isShizukuAlive()) {
+                    if (ShizukuArchiveHelper.hasPermission()) {
+                        success = isCurrentlyArchived
+                                ? ShizukuArchiveHelper.unarchivePackage(packageName)
+                                : ShizukuArchiveHelper.archivePackage(packageName);
+                    } else {
+                        postToast(context, "Shizuku permission needed — grant it then try again");
+                        MAIN_HANDLER.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                ShizukuArchiveHelper.requestShizukuPermission(ShizukuArchiveHelper.SHIZUKU_REQ_CODE);
+                            }
+                        });
+                        return;
                     }
                 }
 
@@ -492,14 +491,13 @@ public final class MorpheMenuInjector {
                             : NativeArchiveHelper.archivePackage(context, packageName);
                 }
 
-                if (success) {
-                    String msg = (isCurrentlyArchived ? "Successfully restored " : "Successfully archived ") + finalLabel;
-                    postToast(context, msg);
-                } else if (!NativeArchiveHelper.isSupported() && !ShizukuArchiveHelper.isShizukuAlive()) {
-                    postToast(context, "App archiving requires Shizuku or Android 15+");
-                } else {
-                    String msg = "Failed to " + (isCurrentlyArchived ? "restore " : "archive ") + finalLabel;
-                    postToast(context, msg);
+                // Only toast on failure — the pre-toast and drawer refresh confirm success
+                if (!success) {
+                    if (!NativeArchiveHelper.isSupported() && !ShizukuArchiveHelper.isShizukuAlive()) {
+                        postToast(context, "App archiving requires Shizuku or Android 15+");
+                    } else {
+                        postToast(context, "Failed to " + (isCurrentlyArchived ? "restore " : "archive ") + finalLabel);
+                    }
                 }
             }
         });
