@@ -44,6 +44,7 @@ val morpheContextualActionPatch = bytecodePatch(
     default = true,
 ) {
     compatibleWith(Constants.COMPATIBILITY)
+    extendWith("extensions/extension.mpe")
 
     execute {
         // 1. Inject dedicated Archive item into popup menu list.
